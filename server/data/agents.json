@@ -1,0 +1,37 @@
+{
+  "agents": [
+    {
+      "id": 1786130445696,
+      "name": "Claude-Code-AI",
+      "type": "claude",
+      "config": {},
+      "status": "active",
+      "created_at": "2026-08-07T19:20:45.697Z",
+      "last_active": "2026-08-07T19:20:45.697Z"
+    },
+    {
+      "id": 1786130449126,
+      "name": "OpenCode-Agent",
+      "type": "opencode",
+      "config": {},
+      "status": "active",
+      "created_at": "2026-08-07T19:20:49.126Z",
+      "last_active": "2026-08-07T19:20:49.126Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": 1786130464997,
+      "agent_id": "1786130445696",
+      "task": "Analyser le code du serveur",
+      "status": "pending",
+      "data": {
+        "files": [
+          "server.js",
+          "routes/memory.js"
+        ]
+      },
+      "created_at": "2026-08-07T19:21:04.997Z"
+    }
+  ]
+}
