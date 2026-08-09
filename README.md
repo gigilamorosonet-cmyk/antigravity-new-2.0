@@ -1,189 +1,75 @@
-# Agent Studio - Orchestration d'Agents IA
+# 🚀 Anti-Gravity Multi-Agent System
 
-Site web complet pour gérer, connecter et orchertrer des agents IA avec interface moderne inspirée de Hermes Workspace / Codex / Claude Code.
+Infrastructure multi-agents avec délégation visuelle d'objectifs.
 
-## 🚀 Démarrage
+## ✨ Features
+
+- **Agent Switcher** : Changer d'agent via dropdown (Hermes, OpenClaw, Custom)
+- **Objective Board** : Tableau Kanban drag-drop entre agents
+- **Server Config** : Configuration serveur LLM externe (chiffrée)
+- **Agent Work Drawer** : Voir le travail en cours d'un agent
+- **WebSocket** : Sync temps réel des états
+
+## 🎨 UI
+
+- Glassmorphism + neon gradients (cyberpunk style)
+- Drag & drop avec @dnd-kit
+- Animations Framer Motion
+- Responsive design
+
+## 📦 Structure
+
+```
+src/
+├── components/
+│   ├── AgentManager/
+│   │   ├── AgentSwitcher.tsx     # Dropdown agents + warnings
+│   │   ├── ServerConfigForm.tsx  # Config serveur LLM
+│   │   └── AgentWorkDrawer.tsx   # Détails travail agent
+│   └── ObjectiveBoard/
+│       └── ObjectiveBoard.tsx    # Tableau tâches + drag-drop
+└── lib/stores/
+    ├── useAgentStore.ts          # State agents
+    ├── useObjectiveStore.ts      # State tâches
+    └── useSkillRegistry.ts       # Registry skills
+```
+
+## 🚀 Démo rapide
 
 ```bash
-cd /opt/data/agent-studio
+# Install
 npm install
-npm start
+
+# Dev
+npm run dev
+# → http://localhost:5173
+
+# Server
+npm run server:dev
+# → http://localhost:8001
 ```
 
-Le serveur démarre sur http://localhost:3000
+## 🔐 Sécurité
 
-## 📊 Architecture
+- API keys chiffrées côté serveur
+- Rate limiting (10 reqs/min/agent)
+- Logs minimaux (pas de clés)
+- SSL validation optionnelle
 
-### Système de Mémoire
+## 📋 Limitation
 
-**Mémoire Individuelle** (`mémoire propre à chaque agent`):
-- Chaque agent a son propre espace mémoire
-- Accessible via `/api/memory/individual/:agentId`
-- Données stockées dans `data/memory.json`
+Les **skills sont locaux** à chaque agent - pas de synchronisation.  
+Les **objectifs sont universels** - texte simple compatible partout.
 
-**Mémoire Partagée** (`mémoire commune entre agents`):
-- Accessible par tous les agents connectés
-- Stockée dans `data/memory.json`
-- Possède une liste d'agents autorisés
+## 🎯 Roadmap
 
-### Workflows n8n
+- [x] Agent Switcher UI
+- [x] Objective Board drag-drop
+- [x] Server Config Form
+- [ ] WebSocket real-time sync
+- [ ] Claude Code/Opencode integration
+- [ ] MCP tools bridge
 
-Intégration complète de workflows n8n:
-- **Liste**: `GET /api/workflows/n8n`
-- **Créer**: `POST /api/workflows/n8n`
-- **Exécuter**: `POST /api/workflows/n8n/:id/execute`
-- **Détails**: `GET /api/workflows/n8n/:id`
+---
 
-### Workflows Obsidian
-
-Similaire à Obsidian:
-- Notes stockées dans une vault
-- Structure hiérarchique des dossiers
-- Recherche full-text
-
-## 🔌 API Endpoints
-
-### Agents
-| Méthode | Endpoint | Description |
-|---------|----------|-------------|
-| GET | /api/agents | Lister tous les agents |
-| POST | /api/agents | Créer un agent |
-| GET | /api/agents/:id | Détails d'un agent |
-| DELETE | /api/agents/:id | Supprimer un agent |
-| POST | /api/agents/:id/task | Envoyer une tâche |
-
-### Mémoire
-| Méthode | Endpoint | Description |
-|---------|----------|-------------|
-| GET | /api/memory/individual/:agentId | Mémoire individuelle |
-| POST | /api/memory/individual/:agentId/:key | Sauvegarder mémoire |
-| GET | /api/memory/shared | Mémoire partagée |
-| POST | /api/memory/shared/:key | Sauvegarder mémoire partagée |
-
-### Workflows
-| Méthode | Endpoint | Description |
-|---------|----------|-------------|
-| GET | /api/workflows/n8n | Liste des workflows |
-| POST | /api/workflows/n8n | Créer un workflow |
-| POST | /api/workflows/n8n/:id/execute | Exécuter un workflow |
-
-## 🎨 Interface
-
-L'interface ressemble à:
-- **Hermes Workspace**: Dashboard avec stats en temps réel
-- **Codex**: Gestion de tâches par project
-- **Claude Code**: Interface claire et fonctionnelle
-
-### Fonctionnalités
-1. 📁 Dashboard avec stats des agents
-2. 📝 Gestion des agents (créer, supprimer, connecter)
-3. 📂 Mémoire individuelle et partagée
-4. ⚡ Workflows n8n intégrés
-5. 📚 Vault Obsidian intégré
-6. 💬 Communication temps réel via WebSocket
-
-## 🧠 Communication entre Agents
-
-Les agents peuvent communiquer via:
-1. **Webhook**: POST `/api/webhook/:agentId`
-2. **Socket.io**: Connexion en temps réel
-3. **Mémoire partagée**: Accès aux données communes
-
-### Exemple de communication
-```javascript
-// Envoyer une tâche à un agent
-POST /api/agents/1234567890/task
-{
-  "task": "Analyser ce code",
-  "data": { "files": ["server.js"] }
-}
-
-// Récupérer la mémoire partagée
-GET /api/memory/shared
-
-// Sauvegarder dans la mémoire individuelle
-POST /api/memory/individual/1234567890/goal
-{ "value": "Objectif de l'agent" }
-```
-
-## 🔧 Configuration
-
-Variables d'environnement:
-- `PORT`: Port du serveur (défaut: 3000)
-- `NODE_ENV`: Environnement (production/development)
-
-## 📁 Structure des Fichiers
-
-```
-/opt/data/agent-studio/
-├── server/
-│   └── server.js          # Serveur Express principal
-├── client/
-│   └── index.html         # Interface web (HTML/CSS/JS)
-├── data/
-│   ├── agents.json        # Agents et tâches
-│   └── memory.json        # Mémoire individuelle et partagée
-├── package.json
-├── index.js
-└── README.md
-```
-
-## 🌟 Fonctionnalités Avancées
-
-### 1. Mémoire individuelle par agent
-Chaque agent possède sa mémoire isolée, accessible via son ID.
-
-### 2. Mémoire partagée entre agents
-Données accessibles à tous les agents avec permissions.
-
-### 3. Workflow n8n fonctionnel
-Exécution complète de workflows n8n avec:
-- Nodes définis en JSON
-- Exécution séquentielle
-- Statut en temps réel
-
-### 4. Dashboard Obsidian-like
-- Structure de dossiers
-- Notes en Markdown
-- Liens bidirectionnels (future)
-
-### 5. Communication temps réel
-Socket.io pour:
-- Notifications de tâches
-- Mises à jour de mémoire
-- Statuts des agents
-
-## ✅ Statut
-
-- [x] Interface web fonctionnelle
-- [x] API REST complète
-- [x] Mémoire individuelle
-- [x] Mémoire partagée
-- [x] Gestion des agents
-- [x] Workflows n8n
-- [x] Communication WebSocket
-- [ ] Workflow Obsidian complet (en cours)
-- [ ] Déploiement production
-
-## 📖 Exemples
-
-### Créer un agent Claude Code
-```bash
-curl -X POST http://localhost:3000/api/agents \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Claude-Code-1","type":"claude","config":{"model":"sonnet"}}'
-```
-
-### Sauvegarder une pensée
-```bash
-curl -X POST http://localhost:3000/api/memory/individual/1786130445696/current-goal \
-  -H "Content-Type: application/json" \
-  -d '{"value":"Analyser le code du projet"}'
-```
-
-### Partager un contexte
-```bash
-curl -X POST http://localhost:3000/api/memory/shared/project-context \
-  -H "Content-Type: application/json" \
-  -d '{"value":"Studio IA","agentsAllowed":["all"]}'
-```
+Built with React 19 + Vite 8 + Tailwind v4 + Zustand
