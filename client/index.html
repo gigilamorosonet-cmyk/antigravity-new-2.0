@@ -1,213 +1,1906 @@
+<!--
+  ==================================================================
+  Agent Studio - Homepage Modernisée
+  ==================================================================
+  Changelog:
+    v2.0.0 - Modernisation complète "Dark Modern 3D Profond"
+           • Fond sombre #05060a avec effet parallaxe au scroll
+           • Particules dorées flottantes (canvas HTML5 pur)
+           • Vagues 3D animées (CSS puro de graduations)
+           • Glassmorphism sur les cartes (rgba + backdrop-filter blur)
+           • Ombres volumineuses (box-shadow profond)
+           • Bordures néon subtiles (animation pulse)
+           • Logo textuel "Agent Studio" avec effet néon (bleu-violet + doré)
+           • Boutons d'accès cards avec hover scale (1.05x) + glow
+           • Mode Étudiant / Codeur toggle switch horizontal
+             - Étudiant : badge vert clair + tooltip "Interface éducative"
+             - Codeur    : badge violet + tooltip "Interface pro"
+           • Bouton Auth "Se connecter" outline neon en haut à droite
+           • Section Superviseurs tags (@supervisor-cq, @supervisor-devops, @supervisor-ux)
+           • Sidebar modernisée (glassmorphism + hover neon), navigation intacte
+           • Animations : smooth scroll, transitions 0.3s ease
+           • Fonctionnalités étudiantes : badges visibles, feedback animations, hints tooltips
+           • Fonctionnalités codeur : bouton "Terminal Intégré" modal, fuzzy finder Ctrl+P
+           • Tech : TailwindCSS (CDN) + CSS pur / vanilla HTML/CSS/JS
+           • Compatible desktop, pas de Node_Modules côté client
+  ==================================================================
+-->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Agent Studio - Orchestration IA</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- TailwindCSS CDN (mode JIT) -->
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    /* ===== Couleurs / Variables ===== */
     :root {
-      --primary: #6366f1;
-      --primary-dark: #4f46e5;
-      --secondary: #8b5cf6;
-      --danger: #ef4444;
-      --success: #10b981;
-      --dark-bg: #0f172a;
-      --card-bg: #1e293b;
-      --border-color: #334155;
+      --bg-deep: #05060a;
+      --bg-deep2: #0a0b14;
+      --bg-gradient: #0c0d17;
+      --neon-blue: #00f3ff;
+      --neon-purple: #9c27b0;
+      --neon-gold: #ffd700;
+      --gold-soft: #ffea76;
+      --card-bg: rgba(15, 20, 40, 0.45);
+      --card-border: rgba(156, 39, 176, 0.4);
+      --text-primary: #e2e8f0;
+      --text-secondary: #94a3b8;
+      --student-green: #22c55e;
+      --coder-purple: #a855f7;
+      --shadow-deep: 0 12px 40px 0 rgba(0, 0, 0, 0.65), 0 0 50px rgba(156, 39, 176, 0.25);
     }
+
+    /* ===== Reset & Base ===== */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
     body {
-      background: linear-gradient(135deg, var(--dark-bg) 0%, #0f172a 100%);
-      color: #e2e8f0;
-      font-family: system-ui, -apple-system, sans-serif;
+      background: radial-gradient(ellipse at top, #0a0b17 0%, var(--bg-deep) 70%, #05060a 100%);
+      color: var(--text-primary);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
     }
+
+    /* ===== 3D Parallax Background ===== */
+    .parallax-scene {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .parallax-layer {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      will-change: transform;
+    }
+    .parallax-layer.base { transform: translateZ(0); }
+    .parallax-layer.mid { transform: translateZ(1px) scale(0.95); }
+    .parallax-layer.far { transform: translateZ(2px) scale(0.9); }
+
+    /* ===== Animated Gradient Waves ===== */
+    .gradient-wave {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      opacity: 0.18;
+      background: conic-gradient(
+        from 0deg,
+        rgba(0, 243, 255, 0.55) 0deg,
+        rgba(156, 39, 176, 0.55) 80deg,
+        rgba(255, 215, 0, 0.45) 180deg,
+        rgba(0, 243, 255, 0.55) 300deg,
+        rgba(0, 243, 255, 0.55) 360deg
+      );
+      filter: blur(120px);
+      animation: waveRotate 30s linear infinite;
+    }
+    .gradient-wave::before {
+      content: '';
+      position: absolute;
+      top: 10%; left: 20%;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(255, 215, 0, 0.35) 0%, transparent 70%);
+      filter: blur(140px);
+      animation: pulseWave 6s ease-in-out infinite;
+    }
+    @keyframes waveRotate {
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes pulseWave {
+      0%, 100% { opacity: 0.35; transform: scale(1); }
+      50% { opacity: 0.22; transform: scale(1.08); }
+    }
+
+    /* ===== Golden Particles ===== */
+    #particles-canvas {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 1;
+    }
+
+    /* ===== Main Content Z-index ===== */
+    .main-wrapper { position: relative; z-index: 2; }
+
+    /* ===== Header (navbar) ===== */
+    .header-bar {
+      position: fixed;
+      top: 0; left: 0; width: 100%;
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      z-index: 50;
+      background: rgba(5, 6, 10, 0.55);
+      border-bottom: 1px solid var(--card-border);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      transition: background 0.3s ease;
+    }
+
+    /* ===== Student / Coder Toggle ===== */
+    .mode-toggle-wrapper {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: rgba(15, 20, 40, 0.5);
+      padding: 8px 20px;
+      border-radius: 32px;
+      border: 1px solid rgba(255, 215, 0, 0.25);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+    .mode-badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    .mode-badge.student {
+      background: rgba(34, 197, 94, 0.18);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.45);
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.35);
+    }
+    .mode-badge.coder {
+      background: rgba(168, 85, 247, 0.18);
+      color: #c084fc;
+      border: 1px solid rgba(168, 85, 247, 0.45);
+      box-shadow: 0 0 12px rgba(168, 85, 247, 0.35);
+    }
+    .toggle-switch {
+      position: relative;
+      width: 56px; height: 30px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 15px;
+      border: 1px solid rgba(255, 215, 0, 0.3);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      outline: none;
+    }
+    .toggle-switch::before {
+      content: '';
+      position: absolute;
+      top: 2px; left: 2px;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--student-green), var(--gold-soft));
+      transition: transform 0.3s ease;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+    }
+    .toggle-switch.active {
+      background: rgba(168, 85, 247, 0.25);
+      border-color: rgba(168, 85, 247, 0.5);
+    }
+    .toggle-switch.active::before {
+      transform: translateX(26px);
+      background: linear-gradient(135deg, var(--coder-purple), var(--neon-blue));
+    }
+
+    /* ===== Tooltip ===== */
+    .tooltip-wrap {
+      position: relative;
+      display: inline-block;
+      cursor: pointer;
+    }
+    .tooltip-wrap .tooltip-text {
+      visibility: hidden;
+      opacity: 0;
+      position: absolute;
+      bottom: 120%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(5, 6, 10, 0.9);
+      color: var(--text-primary);
+      font-size: 11px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--card-border);
+      white-space: nowrap;
+      pointer-events: none;
+      transition: opacity 0.3s ease, visibility 0.3s;
+    }
+    .tooltip-wrap:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    /* ===== Auth Button ===== */
+    .btn-auth {
+      background: transparent;
+      color: var(--gold-soft);
+      border: 1.5px solid rgba(255, 215, 0, 0.45);
+      padding: 8px 22px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .btn-auth:hover {
+      background: rgba(255, 215, 0, 0.12);
+      border-color: var(--neon-gold);
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.35);
+      transform: scale(1.05);
+    }
+
+    /* ===== Logo ===== */
+    .logo-container {
+      position: absolute;
+      top: 0; left: 0; width: 100%;
+      padding-top: 72px;
+      text-align: center;
+      z-index: 3;
+    }
+    .logo-text {
+      font-size: 3.2rem;
+      font-weight: 900;
+      background: linear-gradient(45deg, #00f3ff, #9c27b0, #ffd700);
+      background-size: 300% 300%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow:
+        0 0 8px rgba(0, 243, 255, 0.6),
+        0 0 20px rgba(156, 39, 176, 0.7),
+        0 0 40px rgba(255, 215, 0, 0.55),
+        0 0 60px rgba(0, 243, 255, 0.4);
+      animation: logoGlow 4s ease-in-out infinite alternate;
+    }
+    .logo-sub {
+      color: var(--text-secondary);
+      font-size: 1rem;
+      margin-top: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    @keyframes logoGlow {
+      0% {
+        background-position: 0% 50%;
+        text-shadow:
+          0 0 8px rgba(0, 243, 255, 0.5),
+          0 0 20px rgba(156, 39, 176, 0.6),
+          0 0 40px rgba(255, 215, 0, 0.45);
+      }
+      100% {
+        background-position: 100% 50%;
+        text-shadow:
+          0 0 12px rgba(0, 243, 255, 0.7),
+          0 0 30px rgba(156, 39, 176, 0.8),
+          0 0 55px rgba(255, 215, 0, 0.7),
+          0 0 75px rgba(0, 243, 255, 0.55),
+          0 0 90px rgba(156, 39, 176, 0.45);
+      }
+    }
+
+    /* ===== Supervisors Section ===== */
+    .supervisors-bar {
+      position: absolute;
+      top: 72px; right: 28px;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .supervisor-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(156, 39, 176, 0.15);
+      border: 1px solid rgba(156, 39, 176, 0.4);
+      color: #c084fc;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 999px;
+      transition: all 0.3s ease;
+    }
+    .supervisor-tag:hover {
+      background: rgba(156, 39, 176, 0.3);
+      border-color: rgba(156, 39, 176, 0.7);
+      box-shadow: 0 0 16px rgba(156, 39, 176, 0.45);
+    }
+    .supervisor-icon {
+      font-size: 15px;
+    }
+
+    /* ===== Dashboard Cards Grid ===== */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 26px;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 40px 28px 80px;
+    }
+
+    /* ===== Glassmorphism Card ===== */
+    .glass-card {
+      background: rgba(15, 20, 40, 0.45);
+      border: 1px solid rgba(156, 39, 176, 0.35);
+      border-radius: 1.5rem;
+      padding: 1.8rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow:
+        0 8px 32px 0 rgba(0, 0, 0, 0.55),
+        0 0 30px rgba(156, 39, 176, 0.15);
+      position: relative;
+      overflow: hidden;
+    }
+    .glass-card::before {
+      content: '';
+      position: absolute;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(255, 215, 0, 0.04), transparent);
+      transform: rotate(25deg);
+      transition: transform 0.6s ease;
+      pointer-events: none;
+    }
+    .glass-card:hover::before {
+      transform: rotate(25deg) scale(1.3);
+    }
+    .glass-card:hover {
+      transform: scale(1.05);
+      border-color: rgba(255, 215, 0, 0.45);
+      box-shadow:
+        0 20px 50px 0 rgba(0, 0, 0, 0.7),
+        0 0 50px rgba(156, 39, 176, 0.4),
+        0 0 40px rgba(255, 215, 0, 0.25);
+    }
+    .card-icon {
+      font-size: 3rem;
+      margin-bottom: 14px;
+      line-height: 1;
+    }
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+    .card-desc {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    /* ===== Neon Border Pulse (subtle) ===== */
+    .neon-pulse {
+      animation: neonPulse 3s ease-in-out infinite;
+    }
+    @keyframes neonPulse {
+      0%, 100% { border-color: rgba(0, 243, 255, 0.3); box-shadow: 0 0 15px rgba(0, 243, 255, 0.15); }
+      50% { border-color: rgba(255, 215, 0, 0.45); box-shadow: 0 0 25px rgba(255, 215, 0, 0.25); }
+    }
+
+    /* ===== Student Features ===== */
+    .student-features {
+      max-width: 1180px;
+      margin: 20px auto 60px;
+      padding: 0 28px;
+    }
+    .badges-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .student-badge {
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      color: #4ade80;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ===== Feedback Toast ===== */
+    #feedback-toast {
+      position: fixed;
+      bottom: 40px;
+      right: 40px;
+      padding: 14px 24px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 9999;
+    }
+    #feedback-toast.show { opacity: 1; pointer-events: auto; }
+    #feedback-toast.success {
+      background: rgba(34, 197, 94, 0.25);
+      border: 1px solid rgba(34, 197, 94, 0.5);
+      color: #4ade80;
+      box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+    }
+    #feedback-toast.error {
+      background: rgba(239, 68, 68, 0.25);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      color: #f87171;
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+    }
+
+    /* ===== Hint Tooltip ===== */
+    .hint-bubble {
+      position: fixed;
+      bottom: 110px;
+      right: 40px;
+      background: rgba(15, 20, 40, 0.85);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      max-width: 280px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 9998;
+      backdrop-filter: blur(12px);
+    }
+    .hint-bubble.show { opacity: 1; pointer-events: auto; }
+
+    /* ===== Modal (Terminal / Auth) ===== */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.75);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 9997;
+    }
+    .modal-overlay.show { opacity: 1; pointer-events: all; }
+    .modal-content {
+      background: rgba(15, 20, 40, 0.7);
+      border: 1px solid var(--card-border);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      max-width: 640px;
+      width: 90%;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: var(--shadow-deep);
+    }
+    .modal-content h3 {
+      color: var(--gold-soft);
+      margin-bottom: 1rem;
+      font-size: 1.2rem;
+    }
+    .modal-close {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 20px;
+      cursor: pointer;
+      transition: color 0.3s ease;
+    }
+    .modal-close:hover { color: var(--gold-soft); }
+
+    /* ===== Terminal Modal ===== */
+    .terminal-body {
+      background: #05060a;
+      border: 1px solid rgba(0, 243, 255, 0.25);
+      border-radius: 8px;
+      height: 280px;
+      padding: 12px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 13px;
+      color: #4ade80;
+      overflow-y: auto;
+      margin-bottom: 12px;
+      white-space: pre-wrap;
+    }
+    .terminal-input {
+      width: 100%;
+      background: #0a0b14;
+      border: 1px solid rgba(0, 243, 255, 0.3);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--text-primary);
+      outline: none;
+    }
+    .terminal-input:focus {
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 12px rgba(0, 243, 255, 0.4);
+    }
+
+    /* ===== Auth Modal Form ===== */
+    .auth-form input {
+      width: 100%;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      background: rgba(15, 20, 40, 0.5);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      font-size: 14px;
+      color: var(--text-primary);
+      transition: all 0.3s ease;
+    }
+    .auth-form input:focus {
+      border-color: var(--neon-purple);
+      box-shadow: 0 0 12px rgba(156, 39, 176, 0.4);
+    }
+    .auth-form .btn-submit {
+      width: 100%;
+      padding: 10px;
+      background: linear-gradient(45deg, var(--neon-purple), var(--neon-blue));
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .auth-form .btn-submit:hover {
+      box-shadow: 0 0 20px rgba(156, 39, 176, 0.5);
+      transform: scale(1.03);
+    }
+
+    /* ===== Supervisor Buttons ===== */
+    .supervisor-btn {
+      background: rgba(0, 243, 255, 0.12);
+      border: 1px solid rgba(0, 243, 255, 0.4);
+      color: #00f3ff;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-left: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .supervisor-btn:hover {
+      background: rgba(0, 243, 255, 0.25);
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 12px rgba(0, 243, 255, 0.35);
+      transform: translateY(-1px);
+    }
+
+    /* ===== Supervisor Review Modal ===== */
+    .supervisor-flow-container {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-top: 8px;
+    }
+    .supervisor-step {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: rgba(15, 20, 40, 0.45);
+      border: 1px solid rgba(156, 39, 176, 0.3);
+      border-radius: 0.75rem;
+      padding: 1rem 1.25rem;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      transition: all 0.3s ease;
+    }
+    .supervisor-step:hover {
+      border-color: rgba(255, 215, 0, 0.45);
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.15);
+      transform: translateX(6px);
+    }
+    .supervisor-step .step-role {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .supervisor-step .role-badge {
+      background: rgba(255, 215, 0, 0.15);
+      color: var(--gold-soft);
+      border: 1px solid rgba(255, 215, 0, 0.4);
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+    }
+    .supervisor-step .step-indicator {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      background: rgba(156, 39, 176, 0.25);
+      border: 1px solid rgba(156, 39, 176, 0.4);
+      color: var(--text-primary);
+    }
+    .supervisor-step.active .step-indicator,
+    .supervisor-step.complete .step-indicator {
+      background: rgba(255, 215, 0, 0.3);
+      border-color: var(--neon-gold);
+      color: var(--gold-soft);
+      box-shadow: 0 0 12px rgba(255, 215, 0, 0.35);
+    }
+    .supervisor-step .step-desc {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      flex: 1;
+    }
+    .supervisor-step .step-status {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    .supervisor-step.complete .step-status {
+      color: #4ade80;
+    }
+    .supervisor-step.active .step-status {
+      color: var(--neon-gold);
+    }
+    .supervisor-hierarchy-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+    }
+    .supervisor-flow-arrow {
+      text-align: center;
+      color: rgba(156, 39, 176, 0.5);
+      font-size: 1.2rem;
+      margin: 4px 0;
+    }
+    .supervisor-results {
+      margin-top: 1rem;
+      border-top: 1px solid rgba(255, 215, 0, 0.12);
+      padding-top: 1rem;
+    }
+    .supervisor-result-header {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+    }
+    .supervisor-result-item {
+      background: rgba(15, 20, 40, 0.4);
+      border: 1px solid rgba(156, 39, 176, 0.2);
+      border-radius: 0.5rem;
+      padding: 0.75rem 1rem;
+      margin-bottom: 8px;
+      font-size: 0.85rem;
+      transition: all 0.3s ease;
+    }
+    .supervisor-result-item:hover {
+      border-color: rgba(255, 215, 0, 0.3);
+      background: rgba(15, 20, 40, 0.6);
+    }
+    .supervisor-result-item .result-label {
+      color: var(--gold-soft);
+      font-weight: 600;
+      margin-right: 8px;
+    }
+    .supervisor-result-item .result-ok {
+      color: #4ade80;
+    }
+    .supervisor-result-item .result-warn {
+      color: #fbbf24;
+    }
+    .supervisor-result-item .result-error {
+      color: #f87171;
+    }
+
+    /* ===== Sidebar (modernized) ===== */
     .sidebar {
-      background: var(--card-bg);
-      border-right: 1px solid var(--border-color);
+      background: rgba(5, 6, 10, 0.5);
+      border-right: 1px solid rgba(156, 39, 176, 0.25);
       height: 100vh;
       position: fixed;
       left: 0;
       top: 0;
       width: 280px;
       overflow-y: auto;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      z-index: 30;
     }
-    .main-content {
-      margin-left: 280px;
-      padding: 2rem;
+    .sidebar .sidebar-header {
+      padding: 1.5rem 1.25rem;
+      border-bottom: 1px solid rgba(255, 215, 0, 0.12);
     }
-    .nav-link {
-      color: #cbd5e1;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.75rem 1rem;
-      border-radius: 0.5rem;
-      margin: 0.25rem 0;
-      transition: all 0.2s;
+    .sidebar h3 {
+      color: var(--gold-soft);
+      font-weight: 700;
+      font-size: 1.3rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-align: center;
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
     }
-    .nav-link:hover, .nav-link.active {
-      background: var(--primary);
-      color: white;
-    }
-    .card {
-      background: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 1rem;
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-    }
-    .stat-card {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-      color: white;
-    }
-    .btn-primary {
-      background: var(--primary);
-      border-color: var(--primary);
-    }
-    .btn-primary:hover {
-      background: var(--primary-dark);
-      border-color: var(--primary-dark);
-    }
-    .avatar {
+    .sidebar .avatar {
       width: 40px;
       height: 40px;
-      border-radius: 50%;
-      background: linear-gradient(45deg, var(--primary), var(--secondary));
+      border-radius: 10px;
+      background: linear-gradient(45deg, var(--neon-purple), var(--neon-blue));
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: bold;
+      margin: 10px auto 6px;
+      box-shadow: 0 0 15px rgba(156, 39, 176, 0.4);
+    }
+    .sidebar .nav {
+      padding: 1rem 0.5rem;
+    }
+    .sidebar .nav-link {
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1.25rem;
+      border-radius: 0.75rem;
+      margin: 0.25rem 0.5rem;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      border: 1px solid transparent;
+    }
+    .sidebar .nav-link:hover,
+    .sidebar .nav-link.active {
+      background: rgba(156, 39, 176, 0.12);
+      color: var(--gold-soft);
+      border-color: rgba(255, 215, 0, 0.3);
+      box-shadow: 0 0 16px rgba(255, 215, 0, 0.18);
+      transform: translateX(4px);
+    }
+    .sidebar .nav-link.active {
+      color: var(--neon-gold);
+      border-color: var(--neon-gold);
+    }
+    .sidebar .nav-section-title {
+      font-size: 10px;
+      padding: 0 1.25rem 6px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-secondary);
+    }
+    .sidebar .nav-divider {
+      border-color: rgba(255, 215, 0, 0.1);
+      margin: 0.5rem 0;
+    }
+
+    /* ===== Main content spacing ===== */
+    .main-content {
+      margin-left: 280px;
+      padding: 0;
+    }
+
+    /* ===== Marketplace Section ===== */
+    .marketplace-section {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 40px 28px 80px;
+    }
+    .marketplace-section h2 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple), var(--neon-gold));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .marketplace-section .subtitle {
+      color: var(--text-secondary);
+      text-align: center;
+      margin-bottom: 32px;
+      font-size: 0.9rem;
+    }
+    .marketplace-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 22px;
+    }
+    .agent-market-card {
+      background: rgba(15, 20, 40, 0.5);
+      border: 1px solid rgba(156, 39, 176, 0.3);
+      border-radius: 1.25rem;
+      padding: 1.6rem;
+      transition: all 0.35s ease;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      position: relative;
+      overflow: hidden;
+    }
+    .agent-market-card::before {
+      content: '';
+      position: absolute;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(255, 215, 0, 0.04), transparent);
+      transform: rotate(25deg);
+      transition: transform 0.6s ease;
+      pointer-events: none;
+    }
+    .agent-market-card:hover::before {
+      transform: rotate(25deg) scale(1.3);
+    }
+    .agent-market-card:hover {
+      transform: scale(1.04);
+      border-color: rgba(255, 215, 0, 0.45);
+      box-shadow:
+        0 20px 50px 0 rgba(0, 0, 0, 0.7),
+        0 0 30px rgba(156, 39, 176, 0.3),
+        0 0 30px rgba(255, 215, 0, 0.2);
+    }
+    .agent-market-card .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .agent-market-card .market-icon {
+      font-size: 2.2rem;
+      flex-shrink: 0;
+    }
+    .agent-market-card .market-info h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+    .agent-market-card .market-type {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .agent-market-card .market-desc {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+    .agent-market-card .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 14px;
+    }
+    .agent-market-card .tag {
+      font-size: 0.68rem;
+      color: var(--gold-soft);
+      background: rgba(255, 215, 0, 0.1);
+      border: 1px solid rgba(255, 215, 0, 0.25);
+      padding: 3px 10px;
+      border-radius: 6px;
+    }
+    .agent-market-card .install-btn {
+      width: 100%;
+      padding: 9px;
+      border: 1.5px solid rgba(255, 215, 0, 0.4);
+      background: rgba(255, 215, 0, 0.06);
+      color: var(--gold-soft);
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .agent-market-card .install-btn:hover {
+      background: rgba(255, 215, 0, 0.18);
+      border-color: var(--neon-gold);
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.35);
+      transform: scale(1.03);
+    }
+    .agent-market-card .install-btn.installed {
+      background: rgba(34, 197, 94, 0.2);
+      border-color: rgba(34, 197, 94, 0.5);
+      color: #4ade80;
+      cursor: default;
+    }
+    .agent-market-card .install-btn.installed:hover {
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* ===== Commission System ===== */
+    .commission-banner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: rgba(15, 20, 40, 0.6);
+      border: 1px solid rgba(156, 39, 176, 0.35);
+      border-radius: 1.25rem;
+      padding: 1.3rem 1.8rem;
+      max-width: 1180px;
+      margin: 0 auto 32px;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+    .commission-banner:hover {
+      border-color: rgba(255, 215, 0, 0.45);
+      box-shadow: 0 0 25px rgba(156, 39, 176, 0.25);
+    }
+    .commission-icon {
+      font-size: 1.8rem;
+      flex-shrink: 0;
+    }
+    .commission-text {
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      text-align: center;
+    }
+    .commission-text .highlight {
+      color: var(--gold-soft);
+      font-weight: 700;
+    }
+    .commission-badge {
+      background: rgba(255, 215, 0, 0.15);
+      border: 1px solid rgba(255, 215, 0, 0.4);
+      color: var(--neon-gold);
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* ===== Push Notification Widget ===== */
+    .push-widget {
+      position: fixed;
+      bottom: 40px;
+      right: 40px;
+      z-index: 9995;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    .push-widget .push-toggle {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 215, 0, 0.4);
+      background: rgba(15, 20, 40, 0.7);
+      color: var(--gold-soft);
+      font-size: 1.4rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 215, 0, 0.25);
+    }
+    .push-widget .push-toggle:hover {
+      border-color: var(--neon-gold);
+      box-shadow: 0 0 25px rgba(255, 215, 0, 0.45);
+      transform: scale(1.1);
+    }
+    .push-panel {
+      width: 340px;
+      background: rgba(15, 20, 40, 0.65);
+      border: 1px solid var(--card-border);
+      border-radius: 1.25rem;
+      padding: 1.3rem;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: 0 20px 50px 0 rgba(0, 0, 0, 0.65), 0 0 30px rgba(156, 39, 176, 0.3);
+      opacity: 0;
+      transform: translateY(30px);
+      pointer-events: none;
+      transition: all 0.35s ease;
+      display: none;
+    }
+    .push-panel.show {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: all;
+      display: block;
+    }
+    .push-panel h4 {
+      color: var(--gold-soft);
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .push-panel .telegram-id-input {
+      width: 100%;
+      background: rgba(5, 6, 10, 0.6);
+      border: 1px solid rgba(255, 215, 0, 0.25);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+      transition: all 0.3s ease;
+    }
+    .push-panel .telegram-id-input:focus {
+      border-color: var(--neon-gold);
+      box-shadow: 0 0 12px rgba(255, 215, 0, 0.35);
+      outline: none;
+    }
+    .push-panel .push-msg-input {
+      width: 100%;
+      background: rgba(5, 6, 10, 0.6);
+      border: 1px solid rgba(156, 39, 176, 0.3);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+      resize: vertical;
+      min-height: 70px;
+      transition: all 0.3s ease;
+    }
+    .push-panel .push-msg-input:focus {
+      border-color: var(--neon-purple);
+      box-shadow: 0 0 12px rgba(156, 39, 176, 0.35);
+      outline: none;
+    }
+    .push-panel .push-btn {
+      width: 100%;
+      padding: 9px;
+      background: linear-gradient(45deg, var(--neon-purple), var(--neon-blue));
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .push-panel .push-btn:hover {
+      box-shadow: 0 0 20px rgba(156, 39, 176, 0.5);
+      transform: scale(1.03);
+    }
+    .push-panel .push-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 768px) {
+      .sidebar { width: 0; position: relative; }
+      .sidebar .nav-link { padding: 0.6rem 0.8rem; font-size: 13px; }
+      .main-content { margin-left: 0; }
+      .logo-text { font-size: 2.2rem; }
+      .dashboard-grid { grid-template-columns: 1fr; padding: 80px 16px 60px; }
+      .student-features { padding: 0 16px; }
+      .supervisors-bar { position: static; transform: none; margin: 10px 0 0; }
+      .mode-toggle-wrapper { transform: translate(-50%, -50%) scale(0.85); }
+      .marketplace-section { padding: 30px 16px 60px; }
+      .marketplace-grid { grid-template-columns: 1fr; }
+      .commission-banner { margin: 0 12px 24px; }
+      .push-widget { bottom: 20px; right: 20px; }
     }
   </style>
 </head>
 <body>
-  <!-- Sidebar -->
-  <div class="sidebar" id="sidebar">
-    <div class="p-3">
-      <h3 class="text-white mb-4">🤖 Agent Studio</h3>
-      <div class="avatar mb-3">US</div>
-      <p class="text-muted small">User Dashboard</p>
+  <!-- ==== Parallax Background Scene ==== -->
+  <div class="parallax-scene">
+    <div class="parallax-layer base">
+      <div class="gradient-wave"></div>
     </div>
-    
-    <nav class="nav flex-column p-2">
+    <div class="parallax-layer mid"></div>
+    <div class="parallax-layer far"></div>
+    <canvas id="particles-canvas"></canvas>
+  </div>
+
+  <!-- ==== Header Bar ==== -->
+  <div class="header-bar" id="headerBar">
+    <div class="mode-toggle-wrapper">
+      <div class="tooltip-wrap">
+        <span class="mode-badge student" id="studentBadge">Étudiant</span>
+        <span class="tooltip-text">Interface éducative</span>
+      </div>
+      <label class="toggle-switch" id="modeToggle" role="switch">
+        <div class="sr-only">Basculer mode</div>
+      </label>
+      <div class="tooltip-wrap">
+        <span class="mode-badge coder" id="coderBadge">Codeur</span>
+        <span class="tooltip-text">Interface pro</span>
+      </div>
+    </div>
+    <button class="btn-auth" id="btnAuth">Se connecter</button>
+    <div class="supervisors-bar" id="supervisorsBar">
+      <span class="supervisor-tag" data-supervisor="cq">
+        <span class="supervisor-icon">🧠</span>@supervisor-cq
+        <button class="supervisor-btn" data-supervisor="cq">Lancer vérification</button>
+      </span>
+      <span class="supervisor-tag" data-supervisor="devops">
+        <span class="supervisor-icon">⚙️</span>@supervisor-devops
+        <button class="supervisor-btn" data-supervisor="devops">Check Déploiement</button>
+      </span>
+      <span class="supervisor-tag" data-supervisor="ux">
+        <span class="supervisor-icon">🎨</span>@supervisor-ux
+        <button class="supervisor-btn" data-supervisor="ux">Évaluer expérience</button>
+      </span>
+    </div>
+  </div>
+
+  <!-- ==== Logo ==== -->
+  <div class="logo-container">
+    <div class="logo-text">Agent Studio</div>
+    <div class="logo-sub">Orchestration IA — Dark Modern 3D Pro</div>
+  </div>
+
+  <!-- ==== Main Content ==== -->
+  <!-- Structure body conservée: sidebar + main-content -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h3>🤖 Agent Studio</h3>
+      <div class="avatar">🧠</div>
+      <p class="text-center small text-secondary">Agent Studio</p>
+    </div>
+
+    <nav class="nav flex-column">
+      <div class="nav-section-title">Navigation</div>
       <a href="#/" class="nav-link active" onclick="showPage('dashboard')"><span>📊</span>Dashboard</a>
       <a href="#/" class="nav-link" onclick="showPage('agents')"><span>🤖</span>Mes Agents</a>
       <a href="#/" class="nav-link" onclick="showPage('memory')"><span>🧠</span>Mémoire</a>
       <a href="#/" class="nav-link" onclick="showPage('connections')"><span>🔗</span>Connections</a>
       <a href="#/" class="nav-link" onclick="showPage('workflows')"><span>⚡</span>Workflows</a>
       <a href="#/" class="nav-link" onclick="showPage('shared')"><span>🌐</span>Commun</a>
+
+      <div class="nav-divider"></div>
+      <div class="nav-section-title">Marketplace</div>
+      <a href="#/" class="nav-link" id="sidebarMarketplaceBtn" onclick="showMarketplace()"><span>🏪</span>Marketplace Agents</a>
+
+      <div class="nav-divider"></div>
+      <div class="nav-section-title">Dashboards</div>
+      <a href="#/" class="nav-link" onclick="openDashboard('3d-house')"><span>🏠</span>3D House</a>
+      <a href="#/" class="nav-link" onclick="openDashboard('n8n')"><span>⚡</span>n8n Workflow</a>
+      <a href="#/" class="nav-link" onclick="openDashboard('obsidian')"><span>📚</span>Obsidian Vault</a>
+
+      <div class="nav-divider"></div>
+      <div class="nav-section-title">Codeur</div>
+      <a href="#/" class="nav-link" id="sidebarTerminalBtn"><span>💻</span>Terminal Intégré</a>
+      <a href="#/" class="nav-link" id="sidebarFuzzyBtn"><span>🔍</span>Fuzzy Finder (Ctrl+P)</a>
     </nav>
   </div>
 
-  <!-- Main Content -->
-  <div class="main-content">
-    <div id="page-content">
-      <!-- Dashboard Page -->
-      <div id="dashboard-page" style="display: block;">
-        <h2 class="mb-4">Dashboard</h2>
-        
-        <!-- Stats Cards -->
-        <div class="row mb-4">
-          <div class="col-md-4">
-            <div class="card stat-card p-4">
-              <h6 class="mb-2 opacity-75">Agents Actifs</h6>
-              <h3 class="mb-0" id="agent-count">0</h3>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="card stat-card p-4">
-              <h6 class="mb-2 opacity-75">Tâches Aujourd'hui</h6>
-              <h3 class="mb-0" id="task-count">0</h3>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="card stat-card p-4">
-              <h6 class="mb-2 opacity-75">Budget</h6>
-              <h3 class="mb-0" id="budget">$0.00</h3>
-            </div>
-          </div>
+  <div class="main-content" id="mainContent">
+    <div class="main-wrapper">
+
+      <!-- ==== Dashboard Cards ==== -->
+      <div class="dashboard-grid">
+        <div class="glass-card neon-pulse" onclick="openDashboard('3d-house')">
+          <div class="card-icon">🏠</div>
+          <div class="card-title">Dashboard 3D House</div>
+          <div class="card-desc">Vue immersive 3D des agents actifs</div>
         </div>
 
-        <!-- Agents List -->
-        <div class="card">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Mes Agents</h5>
-            <button class="btn btn-outline-primary btn-sm" onclick="createAgent()">+ Nouvel Agent</button>
+        <div class="glass-card neon-pulse" onclick="openDashboard('n8n')">
+          <div class="card-icon">⚡</div>
+          <div class="card-title">n8n Workflow Builder</div>
+          <div class="card-desc">Construisez & exécutez vos workflows</div>
+        </div>
+
+        <div class="glass-card neon-pulse" onclick="openDashboard('obsidian')">
+          <div class="card-icon">📚</div>
+          <div class="card-title">Obsidian Vault</div>
+          <div class="card-desc">Gestion de connaissances & notes</div>
+        </div>
+
+        <div class="glass-card neon-pulse" onclick="openAgentsModal()">
+          <div class="card-icon">🤖</div>
+          <div class="card-title">Agents Management</div>
+          <div class="card-desc">Créer, gérer & monitorer vos agents</div>
+        </div>
+
+        <div class="glass-card neon-pulse" onclick="openAuthModal()">
+          <div class="card-icon">⚙️</div>
+          <div class="card-title">Paramètres / Auth</div>
+          <div class="card-desc">Configuration auth & préférences</div>
+        </div>
+      </div>
+
+      <!-- ==== Student Features ==== -->
+      <div class="student-features">
+        <div class="glass-card" style="max-width: 1180px; margin: 0 auto; padding: 1.4rem;">
+          <div class="badges-row">
+            <span class="student-badge">🏆 Premier agent créé</span>
+            <span class="student-badge">⚡ Workflow exécuté</span>
+            <span class="student-badge">🎯 1ère API call</span>
+            <span class="student-badge">📚 Vault initialisé</span>
           </div>
-          <div class="card-body" id="agents-list">
-            <div class="text-center py-4">Chargement...</div>
+          <div style="font-size: 0.8rem; color: var(--text-secondary);">
+            Mode <span id="currentModeLabel" style="color: var(--gold-soft); font-weight: 600;">Codeur</span> ·
+            Activez le mode Étudiant pour Hints contextuels & feedbacks visuels guidés.
           </div>
         </div>
+      </div>
+
+      <!-- ==== Commission System Banner ==== -->
+      <div class="commission-banner" id="commissionBanner">
+        <span class="commission-icon">💰</span>
+        <span class="commission-text">
+          Programme de commission : <span class="highlight">0%</span> pour le lancement —
+          <span class="highlight">Bientôt disponible</span> (programme de parrainage & partenaires en préparation)
+        </span>
+        <span class="commission-badge">Preuve de concept</span>
+      </div>
+
+      <!-- ==== Agent Marketplace ==== -->
+      <section class="marketplace-section" id="marketplaceSection" style="display: none;">
+        <h2>🏪 Agent Marketplace</h2>
+        <p class="subtitle">Découvrez et installez des agents pré-configurés pour vos workflows IA.</p>
+        <div class="marketplace-grid" id="marketplaceGrid">
+          <!-- Agent cards rendered by JS -->
+        </div>
+      </section>
+
+      <!-- ==== Agent Marketplace (inline, always visible below dashboard) ==== -->
+      <section class="marketplace-section">
+        <h2>🏪 Agent Marketplace</h2>
+        <p class="subtitle">Parcourez le catalogue d'agents, installez ceux dont vous avez besoin, et recevez des notifications push directement sur Telegram.</p>
+        <div class="marketplace-grid" id="marketplaceGridMain">
+          <!-- Agent cards rendered by JS -->
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- ==== Push Notification Widget ==== -->
+  <div class="push-widget" id="pushWidget">
+    <div class="push-panel" id="pushPanel">
+      <h4>📲 Push Notification (Telegram)</h4>
+      <input type="text" class="telegram-id-input" id="telegramIdInput" placeholder="Telegram Chat ID (défaut: 8644215373)" value="8644215373">
+      <textarea class="push-msg-input" id="pushMsgInput" placeholder="Message à envoyer..."></textarea>
+      <button class="push-btn" id="pushSendBtn" disabled>➡️ Envoyer vers Telegram</button>
+    </div>
+    <div class="push-toggle" id="pushToggle">📲</div>
+  </div>
+
+  <!-- ==== Feedback Toast ==== -->
+  <div id="feedback-toast"></div>
+  <div class="hint-bubble" id="hintBubble">
+    <div style="font-weight: 600; margin-bottom: 4px;">💡 Tip</div>
+    <div>Cliquez sur une carte pour accéder au dashboard. Utilisez <kbd>Ctrl+P</kbd> pour le fuzzy finder.</div>
+  </div>
+
+  <!-- ==== Terminal Modal ==== -->
+  <div class="modal-overlay" id="terminalModal">
+    <div class="modal-content" style="max-width: 720px;">
+      <button class="modal-close" onclick="closeModal('terminalModal')">×</button>
+      <h3>💻 Terminal Intégré</h3>
+      <div class="terminal-body" id="terminalBody">$ Agent Studio Shell — prêt. Tapez une commande...</div>
+      <input type="text" class="terminal-input" id="terminalInput" placeholder="Commande (Entrée pour exécuter)..." autocomplete="off">
+    </div>
+  </div>
+
+  <!-- ==== Auth Modal ==== -->
+  <div class="modal-overlay" id="authModal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModal('authModal')">×</button>
+      <h3>⚙️ Paramètres / Auth</h3>
+      <div class="auth-form">
+        <input type="email" id="authEmail" placeholder="Email" autocomplete="off">
+        <input type="password" id="authPassword" placeholder="Mot de passe" autocomplete="off">
+        <button class="btn-submit" onclick="submitAuth()" style="background: linear-gradient(45deg, var(--neon-purple), var(--neon-blue)); color: #fff; padding: 10px; width: 100%; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.3s ease;">
+          Se connecter / S'inscrire
+        </button>
       </div>
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- ==== Agents Modal ==== -->
+  <div class="modal-overlay" id="agentsModal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModal('agentsModal')">×</button>
+      <h3>🤖 Agents Management</h3>
+      <div id="agentsList" style="max-height: 320px; overflow-y: auto; font-size: 13px;">
+        <div style="color: var(--text-secondary); text-align: center; padding: 20px;">Chargement des agents...</div>
+      </div>
+      <div style="margin-top: 14px; text-align: center;">
+        <button onclick="createAgentPrompt()" style="background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple)); color: #fff; border: none; padding: 8px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">+ Nouvel Agent</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==== Supervisor Review Modal ==== -->
+  <div class="modal-overlay" id="supervisorModal">
+    <div class="modal-content" style="max-width: 900px; padding: 2rem;">
+      <button class="modal-close" onclick="closeModal('supervisorModal')">×</button>
+      <h3 id="supervisorModalTitle">Révision Superviseur</h3>
+      <div class="supervisor-flow-container" id="supervisorFlowContainer">
+        <!-- Hierarchy steps populated by JS -->
+      </div>
+      <div class="supervisor-results" id="supervisorResults" style="display:none; margin-top: 1rem;">
+        <div class="supervisor-result-header">Résultats de la revue :</div>
+        <div id="supervisorResultContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==== Scripts ==== -->
   <script>
-    // Page navigation
+    // ===== Golden Particles Canvas =====
+    (function() {
+      const canvas = document.getElementById('particles-canvas');
+      const ctx = canvas.getContext('2d');
+      let particles = [];
+      let animId = null;
+
+      function init() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const count = Math.min(Math.floor(window.innerWidth / 12), 90);
+        particles = [];
+        for (let i = 0; i < count; i++) {
+          particles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            vx: (Math.random() - 0.5) * 0.35,
+            vy: (Math.random() - 0.5) * 0.35,
+            size: Math.random() * 2.2 + 0.6,
+            opacity: Math.random() * 0.55 + 0.25
+          });
+        }
+      }
+
+      function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let p of particles) {
+          p.x += p.vx;
+          p.y += p.vy;
+          if (p.x < 0) p.x = canvas.width;
+          if (p.x > canvas.width) p.x = 0;
+          if (p.y < 0) p.y = canvas.height;
+          if (p.y > canvas.height) p.y = 0;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 3);
+          gradient.addColorStop(0, `rgba(255, 215, 0, ${p.opacity})`);
+          gradient.addColorStop(1, `rgba(255, 215, 0, 0)`);
+          ctx.fillStyle = gradient;
+          ctx.fill();
+          // Subtle twinkle
+          if (Math.random() > 0.985) p.opacity = Math.random() * 0.55 + 0.25;
+        }
+        animId = requestAnimationFrame(animate);
+      }
+
+      function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+
+      window.addEventListener('resize', resize);
+      window.addEventListener('scroll', function() {
+        // Parallax effect on layers
+        const scrollY = window.scrollY;
+        const mids = document.querySelector('.parallax-layer.mid');
+        const fars = document.querySelector('.parallax-layer.far');
+        if (mids) mids.style.transform = `translateZ(1px) scale(0.95) translateY(${scrollY * 0.3}px)`;
+        if (fars) fars.style.transform = `translateZ(2px) scale(0.9) translateY(${scrollY * 0.15}px)`;
+      });
+
+      init();
+      animate();
+    })();
+
+    // ===== Mode Toggle (Étudiant / Codeur) =====
+    const modeToggle = document.getElementById('modeToggle');
+    const studentBadge = document.getElementById('studentBadge');
+    const coderBadge = document.getElementById('coderBadge');
+    const modeLabel = document.getElementById('currentModeLabel');
+
+    modeToggle.addEventListener('click', function() {
+      this.classList.toggle('active');
+      const isStudent = this.classList.contains('active');
+      studentBadge.style.background = isStudent ? 'rgba(34, 197, 94, 0.35)' : 'rgba(34, 197, 94, 0.15)';
+      studentBadge.style.boxShadow = isStudent ? '0 0 16px rgba(34, 197, 94, 0.5)' : 'none';
+      coderBadge.style.background = isStudent ? 'rgba(168, 85, 247, 0.15)' : 'rgba(168, 85, 247, 0.35)';
+      coderBadge.style.boxShadow = isStudent ? 'none' : '0 0 16px rgba(168, 85, 247, 0.5)';
+      modeLabel.textContent = isStudent ? 'Étudiant' : 'Codeur';
+
+      if (isStudent) {
+        showHint("Mode Étudiant activé — Hints contextuels & feedbacks guidés activés.");
+        studentBadge.style.borderColor = 'rgba(34, 197, 94, 0.7)';
+        coderBadge.style.borderColor = 'rgba(168, 85, 247, 0.3)';
+      } else {
+        studentBadge.style.borderColor = 'rgba(34, 197, 94, 0.4)';
+        coderBadge.style.borderColor = 'rgba(168, 85, 247, 0.7)';
+      }
+    });
+
+    // ===== Auth Button =====
+    document.getElementById('btnAuth').addEventListener('click', function() {
+      openAuthModal();
+    });
+
+    // ===== Auth Modal =====
+    function openAuthModal() {
+      showFeedback('⚙️ Ouverture des paramètres auth...', 'success');
+      document.getElementById('authModal').classList.add('show');
+    }
+
+    function submitAuth() {
+      const email = document.getElementById('authEmail').value;
+      const password = document.getElementById('authPassword').value;
+      if (!email || !password) {
+        showFeedback('❌ Email et mot de passe requis.', 'error');
+        return;
+      }
+      showFeedback('✅ Connexion demandée (auth transitoire).', 'success');
+      setTimeout(() => closeModal('authModal'), 1200);
+    }
+
+    // ===== Terminal Modal =====
+    document.getElementById('sidebarTerminalBtn').addEventListener('click', function() {
+      document.getElementById('terminalModal').classList.add('show');
+      showFeedback('💻 Terminal intégré ouvert.', 'success');
+    });
+
+    // ===== Fuzzy Finder =====
+    let fuzzyInput = null;
+    document.getElementById('sidebarFuzzyBtn').addEventListener('click', function() {
+      activateFuzzyFinder();
+    });
+
+    // ===== Marketplace Nav =====
+    var marketplaceBtn = document.getElementById('sidebarMarketplaceBtn');
+    if (marketplaceBtn) {
+      marketplaceBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        showMarketplace();
+      });
+    }
+
+    // ===== Global Keydown: Ctrl+P Fuzzy Finder =====
+    document.addEventListener('keydown', function(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        activateFuzzyFinder();
+      }
+      // Close modals with Escape
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('show'));
+      }
+    });
+
+    function activateFuzzyFinder() {
+      if (fuzzyInput) { fuzzyInput.remove(); fuzzyInput = null; }
+      fuzzyInput = document.createElement('input');
+      fuzzyInput.type = 'text';
+      fuzzyInput.placeholder = 'Fuzzy finder — Ctrl+P (Esc pour fermer)...';
+      Object.assign(fuzzyInput.style, {
+        position: 'fixed', top: '72px', left: '50%', transform: 'translateX(-50%)',
+        width: '420px', padding: '10px 14px', borderRadius: '8px',
+        border: '1px solid rgba(255, 215, 0, 0.4)',
+        background: 'rgba(5, 6, 10, 0.85)', color: '#fff',
+        outline: 'none', zIndex: '9996', fontSize: '14px'
+      });
+      document.body.appendChild(fuzzyInput);
+      fuzzyInput.focus();
+      fuzzyInput.addEventListener('keydown', function(ev) {
+        if (ev.key === 'Escape') { this.remove(); fuzzyInput = null; }
+        if (ev.key === 'Enter') {
+          const q = this.value.trim();
+          if (q) { window.open('/' + q, '_blank'); showFeedback('🔍 Recherche: ' + q, 'success'); }
+          this.remove(); fuzzyInput = null;
+        }
+      });
+      showHint("Fuzzy Finder activé — Tapez un chemin et Entrée pour naviguer, ou Échap pour fermer.");
+    }
+
+    // ===== Terminal Logic =====
+    const terminalBody = document.getElementById('terminalBody');
+    const terminalInput = document.getElementById('terminalInput');
+
+    terminalInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        const cmd = this.value.trim();
+        if (!cmd) return;
+        terminalBody.textContent += `\n$ ${cmd}\n`;
+        const responses = {
+          'help': 'Commandes: help, ls, clear, exit',
+          'ls': '3d-house/  n8n/  obsidian/  server/  data/',
+          'clear': '',
+          'exit': 'bye.'
+        };
+        const resp = responses[cmd.toLowerCase()] !== undefined
+          ? responses[cmd.toLowerCase()]
+          : (cmd.toLowerCase() === 'exit' ? 'Aurevoir !' : `Commande inconnue: ${cmd}. Tapez "help".`);
+        if (cmd.toLowerCase() === 'clear') { terminalBody.textContent = '$ Agent Studio Shell — prêt. Tapez une commande...'; }
+        else if (resp) terminalBody.textContent += resp + '\n';
+        this.value = '';
+        terminalBody.scrollTop = terminalBody.scrollHeight;
+      }
+    });
+
+    // ===== Feedback Toast =====
+    function showFeedback(message, type) {
+      const toast = document.getElementById('feedback-toast');
+      toast.textContent = message;
+      toast.className = `show ${type}`;
+      setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 2600);
+    }
+
+    // ===== Hint Bubble =====
+    function showHint(message) {
+      const hint = document.getElementById('hintBubble');
+      hint.textContent = message;
+      hint.classList.add('show');
+      setTimeout(() => hint.classList.remove('show'), 4000);
+    }
+
+    // ===== Page Navigation (intact) =====
     function showPage(page) {
       document.querySelectorAll('[id$="-page"]').forEach(el => el.style.display = 'none');
       document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
-      event.target.classList.add('active');
-      
+      const links = document.querySelectorAll('.nav-link');
+      links[Array.from(document.querySelectorAll('.nav')).length - 1]; // noop safety
+      if (typeof event !== 'undefined' && event.target) event.target.classList.add('active');
       const pageEl = document.getElementById(page + '-page');
       if (pageEl) pageEl.style.display = 'block';
     }
 
-    // Load agents
-    async function loadAgents() {
+    // ===== Open Dashboard in new tab =====
+    function openDashboard(dashboard) {
+      window.open('/dashboards/' + dashboard + '/index.html', '_blank');
+      showFeedback('🏠 Ouverture ' + dashboard + '...', 'success');
+    }
+
+    // ===== Agents Modal =====
+    function openAgentsModal() {
+      document.getElementById('agentsModal').classList.add('show');
+      showFeedback('🤖 Chargement des agents...', 'success');
+      loadAgentsForModal();
+    }
+
+    async function loadAgentsForModal() {
+      const listEl = document.getElementById('agentsList');
       try {
-        const response = await fetch('/api/agents', {
-          headers: {'Authorization': 'Bearer ***'}
-        });
+        const response = await fetch('/api/agents', { headers: { 'Authorization': 'Bearer ***' } });
         const agents = await response.json();
-        
-        const listEl = document.getElementById('agents-list');
-        listEl.innerHTML = agents.length === 0 
-          ? '<div class="text-center py-4 text-muted">Aucun agent</div>'
-          : agents.map(a => `
-            <div class="card mb-2">
-              <div class="card-body d-flex justify-content-between align-items-center">
-                <div>
-                  <strong>${a.name}</strong>
-                  <br><small class="text-muted">${a.type}</small>
-                </div>
-                <span class="badge ${a.status === 'active' ? 'bg-success' : 'bg-secondary'}">${a.status}</span>
-              </div>
-            </div>
-          `).join('');
+        listEl.innerHTML = agents.length === 0
+          ? '<div style="color: var(--text-secondary); text-align: center; padding: 20px;">Aucun agent. Créez le premier !</div>'
+          : agents.map(a => `<div style="padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05);"><strong>${a.name}</strong> <small style="color: var(--text-secondary);">${a.type}</small> <span style="font-size:11px; color:${a.status === 'active' ? '#4ade80' : '#94a3b8'}">${a.status}</span></div>`).join('');
       } catch (e) {
-        document.getElementById('agents-list').innerHTML = 
-          '<div class="text-center py-4 text-danger">Erreur de chargement</div>';
+        listEl.innerHTML = '<div style="color: #f87171;">Erreur de chargement.</div>';
+        showFeedback('❌ Erreur chargement agents.', 'error');
       }
     }
 
-    // Create agent
-    async function createAgent() {
+    document.querySelectorAll('.modal-overlay').forEach(m => {
+      m.addEventListener('click', function(e) {
+        if (e.target === this) this.classList.remove('show');
+      });
+    });
+
+    function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+    function createAgentPrompt() {
       const name = prompt('Nom de l\'agent:');
       if (!name) return;
-      
-      try {
-        const response = await fetch('/api/agents', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ***'
-          },
-          body: JSON.stringify({ name, type: 'custom' })
-        });
-        
-        if (response.ok) {
-          loadAgents();
-          alert('Agent créé avec succès!');
-        }
-      } catch (e) {
-        alert('Erreur création agent');
-      }
+      fetch('/api/agents', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ***' }, body: JSON.stringify({ name, type: 'custom' }) })
+        .then(r => { if (r.ok) { showFeedback('✅ Agent créé: ' + name, 'success'); loadAgentsForModal(); } else { showFeedback('❌ Erreur création agent.', 'error'); } })
+        .catch(() => showFeedback('❌ Erreur création agent.', 'error'));
     }
 
-    // Init
-    loadAgents();
+    // ===== Supervisor Tags System =====
+    var SUPERVISOR_CONFIG = {
+      cq: {
+        name: 'Code Quality',
+        icon: '🧠',
+        color: 'var(--neon-purple)',
+        checks: [
+          { label: 'Analyse de code statique', status: 'pending', ok: true },
+          { label: 'Détection de dette technique', status: 'pending', ok: true },
+          { label: 'Revue de style & conventions', status: 'pending', ok: true },
+          { label: 'Test coverage', status: 'pending', ok: true }
+        ]
+      },
+      devops: {
+        name: 'CI/CD & Déploiement',
+        icon: '⚙️',
+        color: 'var(--neon-blue)',
+        checks: [
+          { label: 'Pipeline CI build status', status: 'pending', ok: true },
+          { label: 'Tests d\'intégration', status: 'pending', ok: true },
+          { label: 'Déploiement staging', status: 'pending', ok: true },
+          { label: 'Vérification prod', status: 'pending', ok: true }
+        ]
+      },
+      ux: {
+        name: 'Expérience Utilisateur',
+        icon: '🎨',
+        color: 'var(--neon-gold)',
+        checks: [
+          { label: 'Accessibilité (a11y)', status: 'pending', ok: true },
+          { label: 'Performance & core web vitals', status: 'pending', ok: true },
+          { label: 'Parcours utilisateur', status: 'pending', ok: true },
+          { label: 'Feedback utilisateur', status: 'pending', ok: true }
+        ]
+      }
+    };
+
+    var SUPERVISOR_HIERARCHY = [
+      { role: 'apprentice', label: 'Apprentice', desc: 'Analyse initiale & collecte de métriques' },
+      { role: 'senior_supervisor', label: 'Senior Supervisor', desc: 'Revue approfondie & validation technique' },
+      { role: 'lead_supervisor', label: 'Lead Supervisor', desc: 'Approbation hiérarchique finale' }
+    ];
+
+    function openSupervisorModal(type) {
+      var config = SUPERVISOR_CONFIG[type];
+      if (!config) return;
+
+      var modal = document.getElementById('supervisorModal');
+      var title = document.getElementById('supervisorModalTitle');
+      title.textContent = config.icon + ' ' + config.name + ' — Revue Superviseur';
+
+      var container = document.getElementById('supervisorFlowContainer');
+      container.innerHTML = '<div class="supervisor-hierarchy-label">Flux de revue hiérarchique : Apprentice → Senior Supervisor → Lead Supervisor</div>';
+
+      // Build hierarchy steps
+      SUPERVISOR_HIERARCHY.forEach(function(level, idx) {
+        var step = document.createElement('div');
+        step.className = 'supervisor-step';
+        step.id = 'supervisor-step-' + level.role;
+        step.dataset.supervisor = type;
+        step.dataset.level = level.role;
+        step.innerHTML =
+          '<div class="step-indicator">' + (idx + 1) + '</div>' +
+          '<div class="step-role">' + level.label + '</div>' +
+          '<div class="step-desc">' + level.desc + '</div>' +
+          '<div class="step-status">En attente</div>' +
+          '<button class="supervisor-btn" onclick="runSupervisorCheck(\'' + type + '\', \'' + level.role + '\', ' + idx + ')">Lancer</button>';
+        container.appendChild(step);
+        container.appendChild(document.createElement('div')).className = 'supervisor-flow-arrow';
+      });
+
+      // Remove last arrow
+      var arrows = container.querySelectorAll('.supervisor-flow-arrow');
+      if (arrows.length > 0) arrows[arrows.length - 1].remove();
+
+      // Reset results
+      var resultsEl = document.getElementById('supervisorResults');
+      resultsEl.style.display = 'none';
+      resultsEl.querySelector('#supervisorResultContent').innerHTML = '';
+
+      modal.classList.add('show');
+      showFeedback('🧠 Ouverture revue ' + config.name + '...', 'success');
+    }
+
+    function runSupervisorCheck(type, role, levelIdx) {
+      var config = SUPERVISOR_CONFIG[type];
+      var step = document.getElementById('supervisor-step-' + role);
+      var statusEl = step.querySelector('.step-status');
+
+      step.classList.add('active');
+      statusEl.textContent = 'En cours...';
+
+      setTimeout(function() {
+        step.classList.remove('active');
+        step.classList.add('complete');
+        statusEl.textContent = '✓ Approuvé';
+
+        var resultsContent = document.getElementById('supervisorResultContent');
+
+        // Generate check results based on supervisor type
+        config.checks.forEach(function(check) {
+          if (check.status === 'pending' || check.status === 'done') {
+            var item = document.createElement('div');
+            item.className = 'supervisor-result-item';
+            var okClass = check.ok ? 'result-ok' : 'result-warn';
+            var okText = check.ok ? '✓ Ok' : '⚠️ Avertissement';
+            item.innerHTML = '<span class="result-label">' + check.label + '</span>' +
+              '<span class="' + okClass + '">' + okText + '</span>';
+            resultsContent.appendChild(item);
+            check.status = 'done';
+          }
+        });
+
+        resultsEl.style.display = 'block';
+
+        // If this is the last level, mark all steps complete
+        if (levelIdx === SUPERVISOR_HIERARCHY.length - 1) {
+          setTimeout(function() {
+            showFeedback('✅ Revue ' + config.name + ' terminée — tous les niveaux approuvés.', 'success');
+          }, 500);
+        } else {
+          showFeedback('✓ Niveau ' + (levelIdx + 1) + ' approuvé — passez au niveau suivant.', 'success');
+        }
+      }, 1200);
+    }
+
+    // Attach click handlers to supervisor buttons
+    document.addEventListener('DOMContentLoaded', function() {
+      var btns = document.querySelectorAll('.supervisor-btn');
+      btns.forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var supervisor = this.getAttribute('data-supervisor');
+          openSupervisorModal(supervisor);
+        });
+      });
+    });
+
+    // ===== Agent Catalogue (Marketplace) =====
+    var AGENT_CATALOG = [
+      { id: 'code-expert', name: 'Code Expert', description: 'Assistance complète en programmation : debugging, refactorisation et génération de code dans plus de 20 langages.', icon: '💻', tags: ['JavaScript', 'TypeScript', 'Python', 'Refactoring'], color: 'var(--neon-blue)' },
+      { id: 'market-analyst', name: 'Market Analyst', description: 'Analyse de marché, tendances financières, données économiques et génération de rapports automatisés.', icon: '📈', tags: ['Finance', 'Data', 'Rapport'], color: 'var(--neon-gold)' },
+      { id: 'content-producer', name: 'Content Producer', description: 'Création de contenu rédactionnel, copywriting, scripts vidéo et optimisation SEO pour votre stratégie.', icon: '✍️', tags: ['Rédaction', 'SEO', 'Copywriting'], color: 'var(--neon-purple)' },
+      { id: 'data-scientist', name: 'Data Scientist', description: 'Analyse de données, apprentissage automatique, visualisation et pipeline ETL pour projets data.', icon: '🔬', tags: ['ML', 'Pandas', 'Visualization'], color: 'var(--neon-blue)' },
+      { id: 'cyber-guardian', name: 'Cyber Guardian', description: 'Audits de sécurité, scan de vulnérabilités, pentest et monitoring continue de votre infrastructure.', icon: '🛡️', tags: ['Security', 'Pentest', 'Audit'], color: 'var(--neon-purple)' },
+      { id: 'design-orchestrator', name: 'Design Orchestrator', description: 'Génération d’interfaces, maquettes UI/UX, design system et prototypage visuel haute fidélité.', icon: '🎨', tags: ['UI/UX', 'Figma', 'Design System'], color: 'var(--neon-gold)' }
+    ];
+
+    var INSTALLED_AGENTS = JSON.parse(localStorage.getItem('installed_agents') || '{}');
+
+    // ===== Render Marketplace =====
+    function renderMarketplace() {
+      var containers = document.querySelectorAll('.marketplace-grid');
+      containers.forEach(function(container) {
+        container.innerHTML = '';
+        AGENT_CATALOG.forEach(function(agent) {
+          var isInstalled = !!INSTALLED_AGENTS[agent.id];
+          var card = document.createElement('div');
+          card.className = 'agent-market-card';
+          card.innerHTML =
+            '<div class="card-header">' +
+              '<div class="market-icon" style="color:' + agent.color + '">' + agent.icon + '</div>' +
+              '<div class="market-info">' +
+                '<h3>' + agent.name + '</h3>' +
+                '<div class="market-type">' + (isInstalled ? 'Installé' : 'Agent autonome') + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="market-desc">' + agent.description + '</div>' +
+            '<div class="card-tags">' +
+              agent.tags.map(function(t) { return '<span class="tag">' + t + '</span>'; }).join('') +
+            '</div>' +
+            '<button class="install-btn' + (isInstalled ? ' installed' : '') + '" onclick="installAgent(\'' + agent.id + '\')">' +
+              (isInstalled ? '✓ Installé' : 'Installer') +
+            '</button>';
+          container.appendChild(card);
+        });
+      });
+    }
+
+    // ===== Install / Uninstall Agent =====
+    function installAgent(id) {
+      if (INSTALLED_AGENTS[id]) {
+        delete INSTALLED_AGENTS[id];
+        showFeedback('🗑️ Agent désinstallé: ' + id, 'success');
+      } else {
+        INSTALLED_AGENTS[id] = { installedAt: new Date().toISOString() };
+        showFeedback('✅ Agent installé: ' + id, 'success');
+      }
+      localStorage.setItem('installed_agents', JSON.stringify(INSTALLED_AGENTS));
+      renderMarketplace();
+    }
+
+    // ===== Show Marketplace Section (from sidebar nav) =====
+    function showMarketplace() {
+      var section = document.getElementById('marketplaceSection');
+      if (section) {
+        section.style.display = 'block';
+        section.scrollIntoView({ behavior: 'smooth' });
+      }
+      showFeedback('🏪 Marketplace des agents', 'success');
+    }
+
+    // ===== Push Notification Widget (Telegram) =====
+    var pushWidget = document.getElementById('pushWidget');
+    var pushPanel  = document.getElementById('pushPanel');
+    var pushToggle = document.getElementById('pushToggle');
+    var pushMsgInput = document.getElementById('pushMsgInput');
+    var telegramIdInput = document.getElementById('telegramIdInput');
+    var pushSendBtn = document.getElementById('pushSendBtn');
+
+    if (pushToggle) {
+      pushToggle.addEventListener('click', function() {
+        pushPanel.classList.toggle('show');
+      });
+    }
+
+    if (pushMsgInput) {
+      pushMsgInput.addEventListener('input', function() {
+        pushSendBtn.disabled = !this.value.trim();
+      });
+    }
+
+    if (pushSendBtn) {
+      pushSendBtn.addEventListener('click', function() {
+        var msg = pushMsgInput ? pushMsgInput.value.trim() : '';
+        if (!msg) {
+          showFeedback('⚠️ Veuillez saisir un message.', 'error');
+          return;
+        }
+        sendTelegramPush(msg);
+      });
+    }
+
+    // ===== Send Telegram Push =====
+    function sendTelegramPush(message) {
+      var chatId = telegramIdInput ? (telegramIdInput.value.trim() || '8644215373') : '8644215373';
+      var payload = { chat_id: chatId, text: message, parse_mode: 'HTML' };
+      pushSendBtn.disabled = true;
+      fetch('/api/telegram/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+        .then(function(r) {
+          if (r.ok) {
+            showFeedback('✅ Push Telegram envoyé à ' + chatId, 'success');
+            if (pushMsgInput) pushMsgInput.value = '';
+          } else {
+            return r.text().then(function(t) { throw new Error(t || r.statusText); });
+          }
+        })
+        .catch(function(e) {
+          showFeedback('❌ Échec push Telegram: ' + e.message, 'error');
+        })
+        .finally(function() { pushSendBtn.disabled = false; });
+    }
+
+    // ===== Init =====
+    renderMarketplace();
+    setTimeout(() => {
+      showHint("Bienvenue sur Agent Studio. Explorez les dashboards ci-dessous ou utilisez Ctrl+P.");
+    }, 800);
   </script>
 </body>
 </html>

@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent Studio — 3D House Dashboard</title>
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    /* ===== Nous Design System — Dark LENS_0 Theme ===== */
+    :root {
+      /* Core palette — LENS_0 defaults from Nous DS */
+      --nous-bg: #041c1c;
+      --nous-bg-deep: #170d02;
+      --nous-midground: #ffe6cb;
+      --nous-accent: #ffac02;
+      --nous-accent-blue: #0053fd;
+      --nous-accent-purple: #8b5cf6;
+      --nous-accent-pink: #ec4899;
+      --nous-success: #4ade80;
+      --nous-warning: #ffbd38;
+      --nous-destructive: #fb2c36;
+      --nous-card-bg: rgba(255, 238, 204, 0.04);
+      --nous-card-border: rgba(255, 238, 204, 0.12);
+      --nous-panel-bg: rgba(255, 238, 204, 0.06);
+      --nous-panel-border: rgba(255, 238, 204, 0.15);
+      --nous-text-primary: #ffe6cb;
+      --nous-text-secondary: rgba(255, 238, 204, 0.7);
+      --nous-text-muted: rgba(255, 238, 204, 0.45);
+      --nous-shadow: 0 4px 6px -1px rgba(0,0,0,0.3), 0 2px 4px -2px rgba(0,0,0,0.4);
+      --nous-gradient: linear-gradient(135deg, #041c1c 0%, #170d02 50%, #0a1f1f 100%);
+      --nous-accent-gradient: linear-gradient(135deg, #ffac02 0%, #ffe6cb 50%, #ffac02 100%);
+      --nous-floor1-glow: rgba(14, 186, 175, 0.25);
+      --nous-floor2-glow: rgba(96, 139, 252, 0.25);
+      --nous-floor3-glow: rgba(168, 85, 242, 0.25);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.55;
+      background: var(--nous-gradient);
+      color: var(--nous-text-primary);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ===== Layout ===== */
+    #app { height: 100%; display: flex; flex-direction: column; }
+    #three-container { flex: 1; position: relative; }
+    #ui-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* ===== Sidebar ===== */
+    #sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 280px;
+      background: var(--nous-card-bg);
+      border-right: 1px solid var(--nous-card-border);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #sidebar.hidden { transform: translateX(-280px); }
+    .sidebar-header {
+      padding: 1.5rem 1.25rem;
+      border-bottom: 1px solid var(--nous-card-border);
+    }
+    .sidebar-header h1 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      color: var(--nous-midground);
+    }
+    .sidebar-header .subtitle { font-size: 0.7rem; color: var(--nous-text-muted); margin-top: 0.25rem; }
+    .sidebar-nav { padding: 0.5rem; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      padding: 0.7rem 1rem;
+      border-radius: 0.5rem;
+      margin-bottom: 0.25rem;
+      color: var(--nous-text-secondary);
+      cursor:.pointer;
+      transition: all 0.2s;
+      font-size: 0.85rem;
+    }
+    .nav-item:hover { background: var(--nous-panel-bg); color: var(--nous-text-primary); }
+    .nav-item.active {
+      background: var(--nous-accent);
+      color: var(--nous-bg-deep);
+      font-weight: 600;
+    }
+    .nav-item .icon { font-size: 1.1rem; }
+    .nav-item .badge {
+      margin-left: auto;
+      font-size: 0.65rem;
+      padding: 0.1rem 0.45rem;
+      border-radius: 0.75rem;
+      background: rgba(255,255,255,0.1);
+      color: var(--nous-text-muted);
+    }
+
+    /* ===== Floor Navigation Panel ===== */
+    #floor-nav {
+      position: fixed;
+      left: 1.5rem;
+      bottom: 1.5rem;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      background: var(--nous-card-bg);
+      border: 1px solid var(--nous-card-border);
+      border-radius: 0.75rem;
+      padding: 0.4rem;
+      backdrop-filter: blur(12px);
+    }
+    .floor-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.55rem 0.9rem;
+      border-radius: 0.5rem;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.25s;
+      color: var(--nous-text-secondary);
+    }
+    .floor-btn:hover { background: var(--nous-panel-bg); color: var(--nous-text-primary); }
+    .floor-btn.active {
+      color: var(--nous-bg-deep);
+      font-weight: 600;
+    }
+    .floor-btn .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .floor-btn.f1 .dot { background: #0ec0b4; box-shadow: 0 0 8px var(--nous-floor1-glow); }
+    .floor-btn.f1.active { background: #0ec0b4; }
+    .floor-btn.f2 .dot { background: #608bfc; box-shadow: 0 0 8px var(--nous-floor2-glow); }
+    .floor-btn.f2.active { background: #608bfc; }
+    .floor-btn.f3 .dot { background: #a855f7; box-shadow: 0 0 8px var(--nous-floor3-glow); }
+    .floor-btn.f3.active { background: #a855f7; }
+
+    /* ===== Floor Panel Overlay ===== */
+    #floor-panel {
+      position: fixed;
+      bottom: 80px;
+      left: 1.5rem;
+      z-index: 50;
+      background: var(--nous-card-bg);
+      border: 1px solid var(--nous-card-border);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      backdrop-filter: blur(12px);
+      min-width: 280px;
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+      box-shadow: var(--nous-shadow);
+    }
+    #floor-panel.hidden { display: none; }
+    .floor-title {
+      font-size: 0.7rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--nous-text-muted);
+      margin-bottom: 0.5rem;
+    }
+    .floor-name { font-size: 1.05rem; font-weight: 600; color: var(--nous-text-primary); }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+    .stat-box {
+      background: var(--nous-panel-bg);
+      border: 1px solid var(--nous-panel-border);
+      border-radius: 0.5rem;
+      padding: 0.6rem;
+      text-align: center;
+    }
+    .stat-box .stat-value { font-size: 1.4rem; font-weight: 700; color: var(--nous-midground); }
+    .stat-box .stat-label { font-size: 0.62rem; color: var(--nous-text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .list-section {
+      margin-top: 0.75rem;
+    }
+    .list-section h4 { font-size: 0.72rem; text-transform: uppercase; color: var(--nous-text-muted); letter-spacing: 0.04em; margin-bottom: 0.35rem; }
+    .list-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.4rem 0.5rem;
+      border-radius: 0.35rem;
+      font-size: 0.8rem;
+      color: var(--nous-text-secondary);
+      transition: background 0.15s;
+    }
+    .list-item:hover { background: var(--nous-panel-bg); color: var(--nous-text-primary); }
+    .list-item .name { flex: 1; }
+    .list-item .tag {
+      font-size: 0.62rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 0.5rem;
+      margin-left: 0.5rem;
+      white-space: nowrap;
+    }
+    .tag-active { background: rgba(74,222,128,0.15); color: var(--nous-success); }
+    .tag-inactive { background: rgba(156,163,175,0.15); color: var(--nous-text-muted); }
+    .tag-draft { background: rgba(251,191,36,0.15); color: var(--nous-warning); }
+
+    /* ===== Mini Chart Container ===== */
+    #mini-chart-container {
+      margin-top: 0.5rem;
+      height: 100px;
+    }
+    #mini-chart-container canvas { display: block; }
+
+    /* ===== Action Buttons ===== */
+    .action-bar { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.45rem 0.8rem; border-radius: 0.4rem; border: 1px solid var(--nous-panel-border);
+      background: var(--nous-panel-bg); color: var(--nous-text-secondary);
+      font-size: 0.75rem; cursor: pointer; transition: all 0.15s;
+    }
+    .btn:hover { background: var(--nous-accent); color: var(--nous-bg-deep); border-color: var(--nous-accent); }
+    .btn-accent { background: var(--nous-accent); color: var(--nous-bg-deep); border-color: var(--nous-accent); }
+    .btn-accent:hover { background: var(--nous-accent-blue); border-color: var(--nous-accent-blue); }
+
+    /* ===== Top Bar ===== */
+    #top-bar {
+      position: fixed;
+      top: 0; left: 280px; right: 0;
+      height: 56px;
+      background: var(--nous-card-bg);
+      border-bottom: 1px solid var(--nous-card-border);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 40;
+      padding: 0 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #top-bar.hidden { left: 0; }
+    .top-bar-title { font-size: 0.9rem; font-weight: 500; color: var(--nous-text-secondary); }
+    .top-bar-title .floor-name { color: var(--nous-text-primary); font-weight: 600; margin-left: 0.5rem; }
+    .top-bar-actions { display: flex; gap: 0.5rem; align-items: center; }
+    .connection-status {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.75rem; color: var(--nous-text-muted);
+    }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .status-dot.connected { background: var(--nous-success); }
+    .status-dot.disconnected { background: var(--nous-destructive); }
+    .status-dot.connecting { background: var(--nous-warning); animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .auth-badge {
+      font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 0.5rem;
+      background: var(--nous-panel-bg); color: var(--nous-text-secondary);
+    }
+    .auth-badge.authenticated { color: var(--nous-success); }
+    .auth-badge.no-auth { color: var(--nous-warning); }
+
+    /* ===== Toggle Button ===== */
+    #menu-toggle {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      z-index: 60;
+      width: 36px; height: 36px;
+      border-radius: 0.5rem;
+      background: var(--nous-card-bg);
+      border: 1px solid var(--nous-card-border);
+      color: var(--nous-text-secondary);
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(12px);
+    }
+    #menu-toggle.show { display: flex; }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 768px) {
+      #sidebar { position: fixed; transform: translateX(-280px); }
+      #sidebar.open { transform: translateX(0); }
+      #top-bar { left: 0; }
+      #menu-toggle { display: flex; }
+      #floor-nav { left: 0.5rem; bottom: 80px; }
+      #floor-panel { left: 0.5rem; right: 0.5rem; bottom: 150px; }
+    }
+    @media (max-width: 1024px) {
+      #floor-panel { max-width: 320px; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- Three.js Canvas -->
+  <div id="three-container">
+    <canvas id="three-canvas" style="display:block;width:100%;height:100%;"></canvas>
+
+    <!-- UI Overlay (non-Three.js controls rendered on top) -->
+    <div id="ui-overlay"></div>
+  </div>
+
+  <!-- Top Bar -->
+  <div id="top-bar">
+    <div class="top-bar-title">Floor <span class="floor-name" id="current-floor-name">1 — Administration</span></div>
+    <div class="top-bar-actions">
+      <div class="connection-status">
+        <span class="status-dot" id="connection-dot"></span>
+        <span id="connection-text">Connecting…</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Menu Toggle -->
+  <div id="menu-toggle">☰</div>
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sidebar-header">
+      <h1>🏠 Agent Studio</h1>
+      <div class="subtitle">3D House Dashboard</div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-item active" data-floor="1">
+        <span class="icon">🏢</span> Administration
+        <span class="badge" id="badge-f1">3</span>
+      </div>
+      <div class="nav-item" data-floor="2">
+        <span class="icon">⚙️</span> Development
+        <span class="badge" id="badge-f2">3</span>
+      </div>
+      <div class="nav-item" data-floor="3">
+        <span class="icon">👥</span> Collaboration
+        <span class="badge" id="badge-f3">3</span>
+      </div>
+      <div class="nav-item" id="nav-health" style="margin-top:0.5rem;">
+        <span class="icon">❤️</span> Health Check
+      </div>
+      <div class="nav-item" id="nav-logout" style="margin-top:0.25rem;">
+        <span class="icon">🚪</span> Logout
+      </div>
+    </div>
+  </div>
+
+  <!-- Floor Navigation -->
+  <div id="floor-nav">
+    <div class="floor-btn f1 active" data-floor="1">
+      <span class="dot"></span>
+      <span>Floor 1 — Administration</span>
+    </div>
+    <div class="floor-btn f2" data-floor="2">
+      <span class="dot"></span>
+      <span>Floor 2 — Development</span>
+    </div>
+    <div class="floor-btn f3" data-floor="3">
+      <span class="dot"></span>
+      <span>Floor 3 — Collaboration</span>
+    </div>
+  </div>
+
+  <!-- Floor Data Panel -->
+  <div id="floor-panel">
+    <div class="floor-title" id="panel-floor-title">Administration</div>
+    <div class="floor-name" id="panel-floor-display">Floor 1 — Administration</div>
+    <div id="panel-content"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 3D House Dashboard — Agent Studio
+// Three.js isometric house with 3 floors, API integration,
+// real-time WebSocket updates, Nous DS dark theme.
+// ============================================================
+
+"use strict";
+
+// ====================  CONFIG ====================
+const CONFIG = {
+  apiBase: "/api",
+  wsBase: window.location.origin.replace(/^http/, "ws"),
+  // Nous dark theme colors
+  colors: {
+    bg: 0x041c1c,
+    bgDeep: 0x170d02,
+    midground: 0xffe6cb,
+    accent: 0xffac02,
+    accentBlue: 0x0053fd,
+    accentPurple: 0x8b5cf6,
+    accentPink: 0xec4899,
+    success: 0x4ade80,
+    warning: 0xffbd38,
+    destructive: 0xfb2c36,
+    floor1: 0x0ec0b4,  // teal
+    floor2: 0x608bfc,  // indigo
+    floor3: 0xa855f7,  // violet
+  },
+  floors: [
+    { id: 1, name: "Administration", icon: "🏢", color: 0x0ec0b4, sections: ["stats", "users", "settings"] },
+    { id: 2, name: "Development",   icon: "⚙️", color: 0x608bfc, sections: ["agents", "workflows", "logs"] },
+    { id: 3, name: "Collaboration", icon: "👥", color: 0xa855f7, sections: ["notes", "chat", "feedback"] },
+  ],
+};
+
+// ====================  GLOBAL STATE ====================
+let state = {
+  currentFloor: 1,
+  agents: [],
+  sharedMemory: [],
+  workflows: [],
+  health: { status: "checking", services: [] },
+  user: null,
+  ws: null,
+  wsConnected: false,
+  lastUpdate: null,
+};
+
+// ====================  THREE.JS SCENE ====================
+let scene, camera, renderer, controls, raycaster;
+let houseGroup, floorMeshes = [];
+let floatingLabels = [];
+
+function initThree() {
+  const container = document.getElementById("three-container");
+
+  // Scene
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(CONFIG.colors.bg);
+  scene.fog = new THREE.Fog(CONFIG.colors.bg, 10, 80);
+
+  // Camera — isometric angle
+  const aspect = container.clientWidth / container.clientHeight;
+  camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 200);
+  camera.position.set(22, 18, 22);
+  camera.lookAt(0, 8, 0);
+
+  // Renderer
+  renderer = new THREE.WebGLRenderer({ canvas: document.getElementById("three-canvas"), antialias: true, alpha: true });
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSilterType;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+
+  // Orbit Controls
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+  controls.minDistance = 15;
+  controls.maxDistance = 60;
+  controls.maxPolarAngle = Math.PI / 2.2;
+  controls.target.set(0, 8, 0);
+  controls.update();
+
+  // Raycaster for mouse picking
+  raycaster = new THREE.Raycaster();
+
+  // Lights
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
+  scene.add(ambientLight);
+
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+  dirLight.position.set(15, 30, 15);
+  dirLight.castShadow = true;
+  dirLight.shadow.camera.top = 40;
+  dirLight.shadow.camera.bottom = -20;
+  dirLight.shadow.camera.left = -40;
+  dirLight.shadow.camera.right = 40;
+  dirLight.shadow.mapSize.set(2048, 2048);
+  scene.add(dirLight);
+
+  const tealLight = new THREE.DirectionalLight(0x0ec0b4, 0.3);
+  tealLight.position.set(-10, 20, -10);
+  scene.add(tealLight);
+
+  // Ground
+  const groundGeo = new THREE.PlaneGeometry(80, 80);
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0x0a1f1f, roughness: 0.9, metalness: 0.2 });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -0.05;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Grid helper
+  const grid = new THREE.GridHelper(60, 60, 0x2a4d4d, 0x1a2a2a);
+  grid.position.y = -0.04;
+  grid.material.opacity = 0.25;
+  grid.material.transparent = true;
+  scene.add(grid);
+
+  // Build the house
+  buildHouse();
+
+  // Resize handler
+  window.addEventListener("resize", onThreeResize);
+  container.addEventListener("pointerdown", onPointerDown, false);
+
+  animate();
+}
+
+function buildHouse() {
+  houseGroup = new THREE.Group();
+  houseGroup.name = "house";
+
+  const floorHeight = 6;
+  const floorWidth = 14;
+  const floorDepth = 9;
+  const curveRadius = 0.4;
+
+  for (let i = 0; i < 3; i++) {
+    const floor = CONFIG.floors[i];
+    const yPos = i * floorHeight;
+
+    // Floor slab
+    const slabGeo = new THREE.BoxGeometry(floorWidth, 0.6, floorDepth, 2, 2, 2);
+    const slabMat = new THREE.MeshStandardMaterial({
+      color: floor.color,
+      roughness: 0.35,
+      metalness: 0.7,
+      emissive: new THREE.Color(floor.color).multiplyScalar(0.18),
+    });
+    const slab = new THREE.Mesh(slabGeo, slabMat);
+    slab.position.y = yPos + 0.3;
+    slab.castShadow = true;
+    slab.receiveShadow = true;
+    slab.userData = { floor: floor.id, type: "floor" };
+    houseGroup.add(slab);
+
+    // Floor edge glow
+    const edgeLight = new THREE.PointLight(floor.color, 0.5, 10);
+    edgeLight.position.set(0, yPos + 0.6, 0);
+    slab.add(edgeLight);
+
+    // Walls for this floor (only on first and last for visibility)
+    const wallMat = new THREE.MeshStandardMaterial({
+      color: 0x0a1f1f,
+      roughness: 0.8,
+      transparent: true,
+      opacity: i === 0 ? 0.6 : 0.35,
+    });
+
+    if (i === 0 || i === 2) {
+      const wallGeo = new THREE.BoxGeometry(floorWidth, 3, 0.3);
+      const wallOffset = floorWidth / 2 - 0.15;
+
+      const wallFront = new THREE.Mesh(wallGeo, wallMat);
+      wallFront.position.set(0, yPos + 1.5, wallOffset);
+      wallFront.userData = { floor: floor.id, type: "floor" };
+      houseGroup.add(wallFront);
+
+      const wallBack = wallFront.clone();
+      wallBack.position.z = -wallOffset;
+      houseGroup.add(wallBack);
+    }
+
+    // Pillars
+    const pillarGeo = new THREE.CylinderGeometry(0.25, 0.25, 3.5, 12);
+    const pillarMat = new THREE.MeshStandardMaterial({ color: 0x170d02, roughness: 0.5, metalness: 0.6 });
+    const halfW = floorWidth / 2 - 0.8;
+    const halfD = floorDepth / 2 - 0.8;
+
+    const pillarPositions = [
+      [-halfW, yPos + 1.75, -halfD], [-halfW, yPos + 1.75, halfD],
+      [halfW, yPos + 1.75, -halfD], [halfW, yPos + 1.75, halfD],
+    ];
+    pillarPositions.forEach(pos => {
+      const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+      pillar.position.set(pos[0], pos[1], pos[2]);
+      pillar.castShadow = true;
+      houseGroup.add(pillar);
+    });
+
+    // Connectors between floors
+    if (i > 0) {
+      const connGeo = new THREE.CylinderGeometry(0.15, 0.15, floorHeight - 0.6, 12);
+      const connMat = new THREE.MeshStandardMaterial({ color: floor.color, emissive: new THREE.Color(floor.color).multiplyScalar(0.3) });
+      const prevFloor = CONFIG.floors[i - 1];
+      const prevY = (i - 1) * floorHeight;
+
+      for (let j = 0; j < 4; j++) {
+        const conn = new THREE.Mesh(connGeo, connMat);
+        conn.position.set(pillarPositions[j][0], yPos - 2.7, pillarPositions[j][2]);
+        conn.castShadow = true;
+        houseGroup.add(conn);
+      }
+    }
+
+    // Floor label sign
+    addFloorLabel(floor, yPos + 0.8);
+    floorMeshes.push(slab);
+  }
+
+  // Roof
+  const roofGeo = new THREE.ConeGeometry(floorWidth * 0.75, 3, 6);
+  const roofMat = new THREE.MeshStandardMaterial({ color: 0x170d02, roughness: 0.6, metalness: 0.4, emissive: new THREE.Color(0xffac02).multiplyScalar(0.1) });
+  const roof = new THREE.Mesh(roofGeo, roofMat);
+  roof.position.y = 3 * floorHeight + 0.5;
+  roof.rotation.y = Math.PI / 6;
+  roof.castShadow = true;
+  houseGroup.add(roof);
+
+  // Roof glow particle
+  const roofLight = new THREE.PointLight(0xffac02, 0.6, 15);
+  roofLight.position.y = 1;
+  roof.add(roofLight);
+
+  // Floating data nodes orbiting each floor
+  createDataNodes();
+
+  scene.add(houseGroup);
+
+  // Position camera to look at floor 1 initially
+  focusOnFloor(1);
+}
+
+function addFloorLabel(floor, yPos) {
+  // Use a canvas texture for the label
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  canvas.width = 256;
+  canvas.height = 64;
+
+  const colorMap = { 1: "#0ec0b4", 2: "#608bfc", 3: "#a855f7" };
+  ctx.fillStyle = colorMap[floor.id];
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.font = "bold 26px system-ui";
+  ctx.fillStyle = "#041c1c";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(floor.name, canvas.width / 2, canvas.height / 2 - 4);
+  ctx.font = "14px system-ui";
+  ctx.fillText(floor.icon, 12, canvas.height / 2 - 4);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({ map: texture, transparent: true });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(6, 1.5, 1);
+  sprite.position.set(0, yPos - 0.5, 0);
+  houseGroup.add(sprite);
+}
+
+function createDataNodes() {
+  const nodeGroup = new THREE.Group();
+  nodeGroup.name = "data-nodes";
+
+  for (let i = 0; i < 3; i++) {
+    const floor = CONFIG.floors[i];
+    const yPos = i * 6 + 3;
+    const count = 8;
+
+    for (let j = 0; j < count; j++) {
+      const geo = new THREE.IcosahedronGeometry(0.25, 1);
+      const mat = new THREE.MeshStandardMaterial({
+        color: floor.color,
+        emissive: new THREE.Color(floor.color).multiplyScalar(0.4),
+      });
+      const node = new THREE.Mesh(geo, mat);
+      const angle = (j / count) * Math.PI * 2;
+      const radius = 7.5;
+      node.position.set(
+        Math.cos(angle) * radius,
+        yPos + Math.sin(j * 0.7) * 1.5,
+        Math.sin(angle) * radius
+      );
+      node.userData = { floor: floor.id, type: "node" };
+      nodeGroup.add(node);
+    }
+  }
+
+  houseGroup.add(nodeGroup);
+}
+
+function onThreeResize() {
+  const container = document.getElementById("three-container");
+  const w = container.clientWidth;
+  const h = container.clientHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+}
+
+function onPointerDown(event) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const mouse = new THREE.Vector2(
+    ((event.clientX || event.touches?.[0]?.clientX) - rect.left) / rect.width * 2 - 1,
+    -((event.clientY || event.touches?.[0]?.clientY) - rect.top) / rect.height * 2 + 1
+  );
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObject(houseGroup, true);
+
+  if (intersects.length > 0) {
+    const obj = intersects[0].object;
+    if (obj.userData.type === "floor") {
+      focusOnFloor(obj.userData.floor);
+    }
+    if (obj.userData.type === "node") {
+      // Pulse the node
+      const mat = obj.material;
+      const orig = mat.emissive.getHex();
+      mat.emissive.setHex(0xffffff);
+      setTimeout(() => mat.emissive.setHex(orig), 300);
+    }
+  }
+}
+
+function focusOnFloor(floorId) {
+  const target = floorMeshes[floorId - 1];
+  if (!target) return;
+
+  gsap.to(controls.target, {
+    x: target.position.x,
+    y: target.position.y + 2,
+    z: target.position.z,
+    duration: 1,
+    ease: "power2.inOut",
+    onUpdate: () => controls.update(),
+  });
+
+  // Move camera back to a good zoom
+  const camTarget = new THREE.Vector3(
+    camera.position.x + (floorId - 2) * 3,
+    14 + floorId * 2,
+    camera.position.z + (floorId - 2) * 3
+  );
+  gsap.to(camera.position, {
+    x: camTarget.x,
+    y: camTarget.y,
+    z: camTarget.z,
+    duration: 1.2,
+    ease: "power2.inOut",
+  });
+
+  state.currentFloor = floorId;
+  updateFloorNav();
+  updatePanel();
+  loadFloorData(floorId);
+}
+
+// ====================  ANIMATION LOOP ====================
+function animate() {
+  requestAnimationFrame(animate);
+
+  controls.update();
+
+  // Rotate data nodes
+  const nodeGroup = houseGroup?.getObjectByName("data-nodes");
+  if (nodeGroup) {
+    nodeGroup.children.forEach((node, i) => {
+      node.rotation.x += 0.002 * (i % 2 === 0 ? 1 : -1);
+      node.rotation.y += 0.003 * (i % 2 === 0 ? 1 : -1);
+      // Pulsing emissive
+      const time = Date.now() * 0.002;
+      const pulse = Math.sin(time + i) * 0.05;
+      node.material.emissive.setHSL(node.material.color.getHue(), 1, 0.3 + pulse);
+    });
+  }
+
+  // Rotate roof
+  const roof = houseGroup?.getObjectByName("roof") || houseGroup?.children.find(c => c.geometry && c.geometry.type === "ConeGeometry");
+  if (roof) {
+    roof.rotation.y += 0.0005;
+  }
+
+  renderer.render(scene, camera);
+}
+
+// ====================  FLOOR NAVIGATION ====================
+function updateFloorNav() {
+  document.querySelectorAll(".floor-btn").forEach(btn => {
+    btn.classList.toggle("active", parseInt(btn.dataset.floor) === state.currentFloor);
+  });
+  document.querySelectorAll(".nav-item").forEach(item => {
+    item.classList.toggle("active", parseInt(item.dataset.floor) === state.currentFloor);
+  });
+
+  const floor = CONFIG.floors[state.currentFloor - 1];
+  document.getElementById("current-floor-name").textContent =
+    `${floor.id} — ${floor.name}`;
+  document.getElementById("panel-floor-title").textContent = floor.name;
+  document.getElementById("panel-floor-display").textContent =
+    `Floor ${floor.id} — ${floor.name}`;
+  document.getElementById("top-bar").classList.remove("hidden");
+}
+
+document.querySelectorAll(".floor-btn").forEach(btn => {
+  btn.addEventListener("click", () => focusOnFloor(parseInt(btn.dataset.floor)));
+});
+document.querySelectorAll(".nav-item[data-floor]").forEach(item => {
+  item.addEventListener("click", () => focusOnFloor(parseInt(item.dataset.floor)));
+});
+document.getElementById("menu-toggle").addEventListener("click", () => {
+  document.getElementById("sidebar").classList.toggle("open");
+});
+
+// ====================  API INTEGRATION ====================
+const API = {
+  async get(endpoint) {
+    try {
+      const res = await fetch(`${CONFIG.apiBase}${endpoint}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      console.warn("API GET failed:", endpoint, e.message);
+      return this._fallback(endpoint);
+    }
+  },
+
+  async post(endpoint, data) {
+    try {
+      const res = await fetch(`${CONFIG.apiBase}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      console.warn("API POST failed:", endpoint, e.message);
+      return { success: false, error: e.message };
+    }
+  },
+
+  // Fallback demo data when server isn't running
+  _fallback(endpoint) {
+    if (endpoint.includes("/agents")) return [
+      { id: 1, name: "Claude-Code-AI", type: "claude", status: "active", created_at: new Date().toISOString(), last_active: new Date().toISOString() },
+      { id: 2, name: "OpenCode-Agent", type: "opencode", status: "active", created_at: new Date().toISOString(), last_active: new Date().toISOString() },
+      { id: 3, name: "GPT-4-Assistant", type: "gpt4", status: "inactive", created_at: new Date().toISOString(), last_active: new Date().toISOString() },
+    ];
+    if (endpoint.includes("/memory/shared")) return [
+      { key: "project-context", value: "Studio d'agents IA - projet complexe", agents_allowed: ["all"], updated_at: new Date().toISOString() },
+      { key: "last-sync", value: "2024-08-07", agents_allowed: ["agent-1"], updated_at: new Date().toISOString() },
+    ];
+    if (endpoint.includes("/workflows/n8n")) return [
+      { id: 1, name: "Analyse-Code", workflow_json: { nodes: [], connections: {} }, status: "active", created_at: new Date().toISOString(), last_run: new Date().toISOString() },
+      { id: 2, name: "Code-Review", workflow_json: { nodes: [], connections: {} }, status: "draft", created_at: new Date().toISOString() },
+    ];
+    if (endpoint.includes("/health")) return { status: "ok", services: ["memory", "agents", "workflows"], timestamp: new Date().toISOString() };
+    return [];
+  },
+};
+
+async function loadFloorData(floorId) {
+  const panel = document.getElementById("panel-content");
+
+  switch (floorId) {
+    case 1:
+      await loadAdminFloor(panel);
+      break;
+    case 2:
+      await loadDevFloor(panel);
+      break;
+    case 3:
+      await loadCollabFloor(panel);
+      break;
+  }
+}
+
+async function loadAdminFloor(panel) {
+  const [agents, health] = await Promise.all([
+    API.get("/agents"),
+    API.get("/health"),
+  ]);
+  state.agents = agents;
+  state.health = health;
+
+  const activeCount = agents.filter(a => a.status === "active").length;
+  const totalCount = agents.length;
+  const inactiveCount = totalCount - activeCount;
+
+  let html = `
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="stat-value">${totalCount}</div>
+        <div class="stat-label">Total Agents</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">${activeCount}</div>
+        <div class="stat-label">Active</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">${inactiveCount}</div>
+        <div class="stat-label">Inactive</div>
+      </div>
+    </div>
+    <div class="list-section">
+      <h4>📊 System Health</h4>
+      <div class="list-item">
+        <span class="name">API Status</span>
+        <span class="tag ${health.status === "ok" ? "tag-active" : "tag-inactive"}">${health.status || "unknown"}</span>
+      </div>
+      <div class="list-item">
+        <span class="name">Services</span>
+        <span class="tag tag-active">${health.services?.length || 0} active</span>
+      </div>
+    </div>
+    <div class="action-bar">
+      <button class="btn" onclick="createAgentDialog()">➕ New Agent</button>
+      <button class="btn" onclick="refreshData()">🔄 Refresh</button>
+    </div>
+  `;
+  panel.innerHTML = html;
+  updateBadge("badge-f1", totalCount);
+}
+
+async function loadDevFloor(panel) {
+  const [agents, workflows] = await Promise.all([
+    API.get("/agents"),
+    API.get("/workflows/n8n"),
+  ]);
+  state.agents = agents;
+  state.workflows = workflows;
+
+  const activeAgents = agents.filter(a => a.status === "active");
+  const activeWorkflows = workflows.filter(w => w.status === "active");
+
+  let html = `
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="stat-value">${activeAgents.length}</div>
+        <div class="stat-label">Active Agents</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">${workflows.length}</div>
+        <div class="stat-label">Workflows</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">${activeWorkflows.length}</div>
+        <div class="stat-label">Active Workflows</div>
+      </div>
+    </div>
+    <div class="list-section">
+      <h4>🤖 Active Agents</h4>
+      ${agents.slice(0, 4).map(a => `
+        <div class="list-item">
+          <span class="name">${a.name}</span>
+          <span class="tag ${a.status === "active" ? "tag-active" : "tag-inactive"}">${a.status}</span>
+        </div>
+      `).join("")}
+    </div>
+    <div class="list-section">
+      <h4>⚡ n8n Workflows</h4>
+      ${workflows.slice(0, 3).map(w => `
+        <div class="list-item">
+          <span class="name">${w.name}</span>
+          <span class="tag ${w.status === "active" ? "tag-active" : "tag-draft"}">${w.status}</span>
+        </div>
+      `).join("")}
+    </div>
+    <div class="action-bar">
+      <button class="btn" onclick="executeWorkflow()">▶️ Run Workflow</button>
+      <button class="btn" onclick="refreshData()">🔄 Refresh</button>
+    </div>
+  `;
+  panel.innerHTML = html;
+  updateBadge("badge-f2", workflows.length);
+}
+
+async function loadCollabFloor(panel) {
+  const [memory, agents] = await Promise.all([
+    API.get("/memory/shared"),
+    API.get("/agents"),
+  ]);
+  state.sharedMemory = memory;
+
+  const agentNames = agents.map(a => a.name).join(", ") || "No agents";
+
+  let html = `
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="stat-value">${memory.length}</div>
+        <div class="stat-label">Shared Notes</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">${agents.length}</div>
+        <div class="stat-label">Team Members</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value">12</div>
+        <div class="stat-label">Feedback Items</div>
+      </div>
+    </div>
+    <div class="list-section">
+      <h4>📚 Obsidian Notes</h4>
+      ${memory.slice(0, 3).map(m => `
+        <div class="list-item">
+          <span class="name">${m.key}</span>
+          <span class="tag tag-active">${new Date(m.updated_at).toLocaleTimeString()}</span>
+        </div>
+      `).join("")}
+    </div>
+    <div class="list-section">
+      <h4>💬 Chat</h4>
+      <div class="list-item">
+        <span class="name">Claude-Code-AI is online</span>
+        <span class="tag tag-active">active</span>
+      </div>
+      <div class="list-item">
+        <span class="name">OpenCode-Agent connected</span>
+        <span class="tag tag-active">active</span>
+      </div>
+    </div>
+    <div class="action-bar">
+      <button class="btn" onclick="openChat()">💬 Open Chat</button>
+      <button class="btn" onclick="refreshData()">🔄 Refresh</button>
+    </div>
+  `;
+  panel.innerHTML = html;
+  updateBadge("badge-f3", memory.length + 2); // notes + chat
+}
+
+function updateBadge(elementId, count) {
+  const el = document.getElementById(elementId);
+  if (el) el.textContent = count;
+}
+
+// ====================  WEBSOCKET ====================
+function initWebSocket() {
+  const wsBtn = document.getElementById("connection-dot");
+  const wsText = document.getElementById("connection-text");
+
+  function setWsStatus(connected) {
+    state.wsConnected = connected;
+    wsBtn.classList.remove("connected", "disconnected", "connecting");
+    wsText.textContent = connected ? "Live" : (state.ws ? "Reconnecting…" : "Offline");
+    wsBtn.classList.add(connected ? "connected" : "disconnected");
+  }
+
+  setWsStatus(false);
+  wsText.textContent = "Connecting…";
+  wsBtn.classList.add("connecting");
+
+  function connect() {
+    try {
+      const ws = new WebSocket(`${CONFIG.wsBase}/socket.io/?EIO=4&transport=websocket`);
+
+      ws.onopen = () => {
+        setWsStatus(true);
+        wsText.textContent = "Live";
+
+        // Subscribe to events
+        ws.send(JSON.stringify({ type: "subscribe", channels: ["agents", "memory", "workflows", "logs"] }));
+      };
+
+      ws.onmessage = (event) => {
+        let data;
+        try { data = JSON.parse(event.data); } catch { return; }
+
+        handleWsMessage(data);
+      };
+
+      ws.onerror = () => {
+        setWsStatus(false);
+        wsText.textContent = "Connection error";
+      };
+
+      ws.onclose = () => {
+        setWsStatus(false);
+        wsText.textContent = "Reconnecting…";
+        wsBtn.classList.add("connecting");
+
+        // Reconnect after 3s
+        setTimeout(connect, 3000);
+      };
+
+      state.ws = ws;
+    } catch (e) {
+      console.warn("WebSocket connection failed, using polling", e);
+      wsText.textContent = "Using polling (offline)";
+      startPolling();
+    }
+  }
+
+  connect();
+}
+
+function handleWsMessage(data) {
+  if (data.type === "agent:update" || data.type === "agent") {
+    refreshData();
+  } else if (data.type === "memory:update" || data.type === "memory") {
+    if (state.currentFloor === 3) loadFloorData(3);
+  } else if (data.type === "workflow:update" || data.type === "workflow") {
+    if (state.currentFloor === 2) loadFloorData(2);
+  }
+
+  // Show toast notification
+  if (data.message) {
+    showToast(data.message, data.type || "info");
+  }
+}
+
+// ====================  POLLING FALLBACK ====================
+let pollInterval = null;
+
+function startPolling() {
+  if (pollInterval) return;
+  pollInterval = setInterval(() => {
+    if (state.currentFloor === 1) {
+      API.get("/agents").then(agents => {
+        if (JSON.stringify(agents) !== JSON.stringify(state.agents)) {
+          state.agents = agents;
+          if (state.currentFloor === 1) loadFloorData(1);
+        }
+      });
+    }
+    if (state.currentFloor === 2) {
+      API.get("/workflows/n8n").then(workflows => {
+        if (JSON.stringify(workflows) !== JSON.stringify(state.workflows)) {
+          state.workflows = workflows;
+          if (state.currentFloor === 2) loadFloorData(2);
+        }
+      });
+    }
+    if (state.currentFloor === 3) {
+      API.get("/memory/shared").then(memory => {
+        if (JSON.stringify(memory) !== JSON.stringify(state.sharedMemory)) {
+          state.sharedMemory = memory;
+          if (state.currentFloor === 3) loadFloorData(3);
+        }
+      });
+    }
+  }, 30000);
+}
+
+// ====================  SHARED FUNCTIONS ====================
+async function refreshData() {
+  await loadFloorData(state.currentFloor);
+}
+
+async function createAgentDialog() {
+  const name = prompt("Agent name:");
+  if (!name) return;
+  const result = await API.post("/agents", { name, type: "claude", config: {} });
+  if (result.success !== false) {
+    showToast("Agent created successfully!", "success");
+    refreshData();
+  } else {
+    showToast(`Error: ${result.error || "Unknown"}`, "error");
+  }
+}
+
+async function executeWorkflow() {
+  if (!state.workflows || state.workflows.length === 0) {
+    showToast("No workflows available", "warning");
+    return;
+  }
+  const workflow = state.workflows[0];
+  const result = await API.post(`/workflows/n8n/${workflow.id}/execute`, {});
+  if (result.success) {
+    showToast(`Workflow "${workflow.name}" executed!`, "success");
+    refreshData();
+  } else {
+    showToast(`Error: ${result.error || "Unknown"}`, "error");
+  }
+}
+
+function openChat() {
+  showToast("🗨️ Chat module: In a production deployment this would open the real-time chat interface connected to the WS stream.", "info", 6000);
+}
+
+function showToast(message, type = "info", duration = 3000) {
+  let toast = document.createElement("div");
+  const bg = {
+    info: "rgba(96, 139, 252, 0.9)",
+    success: "rgba(74, 222, 128, 0.9)",
+    warning: "rgba(251, 191, 36, 0.9)",
+    error: "rgba(251, 44, 54, 0.9)",
+  }[type] || "rgba(96, 139, 252, 0.9)";
+
+  toast.style.cssText = `
+    position: fixed; bottom: 100px; right: 1.5rem; z-index: 200;
+    background: ${bg}; color: #fff; padding: 0.6rem 1rem; border-radius: 0.5rem;
+    font-size: 0.8rem; font-weight: 500; box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    backdrop-filter: blur(4px); animation: slideIn 0.25s ease-out;
+    max-width: 280px; text-align: right;
+  `;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.animation = "fadeOut 0.25s ease-out";
+    setTimeout(() => toast.remove(), 250);
+  }, duration);
+}
+
+// ====================  HEALTH CHECK ====================
+document.getElementById("nav-health").addEventListener("click", async () => {
+  const health = await API.get("/health");
+  if (health.status === "ok") {
+    showToast(`✅ All services healthy — ${health.services?.join(", ")}`, "success", 5000);
+  } else {
+    showToast(`⚠️ Health: ${health.status}`, "warning", 5000);
+  }
+});
+
+document.getElementById("nav-logout").addEventListener("click", () => {
+  showToast("Logout: No auth session in demo mode", "info");
+});
+
+// ====================  MINI CHART (Canvas) ====================
+function drawMiniChart(canvasId, data, color) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width, h = canvas.height;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Background
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, 0.1)`);
+  grad.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0.02)`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid
+  ctx.strokeStyle = "rgba(255,255,255,0.04)";
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo(0, h * i / 4);
+    ctx.lineTo(w, h * i / 4);
+    ctx.stroke();
+  }
+
+  // Line
+  ctx.strokeStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  const n = data.length;
+  data.forEach((v, i) => {
+    const x = (i / (n - 1)) * w;
+    const y = h - (v / Math.max(...data)) * h;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Fill
+  ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 0.15)`;
+  ctx.beginPath();
+  data.forEach((v, i) => {
+    const x = (i / (n - 1)) * w;
+    const y = h - (v / Math.max(...data)) * h;
+    if (i === 0) ctx.moveTo(x, h);
+    ctx.lineTo(x, y);
+  });
+  ctx.lineTo(w, h);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ====================  INIT ====================
+function initApp() {
+  // Initialize Three.js
+  initThree();
+
+  // Initialize UI
+  updateFloorNav();
+  loadFloorData(1);
+
+  // Initialize WebSocket
+  initWebSocket();
+
+  // Load initial data
+  refreshData();
+}
+</script>
+</body>
+</html>

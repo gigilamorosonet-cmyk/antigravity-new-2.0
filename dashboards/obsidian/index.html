@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent Studio — Obsidian Vault Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@11.2.0/lib/marked.umd.min.js"></script>
+  <style>
+    :root {
+      --bg-primary: #05060a;
+      --bg-secondary: #0a0b14;
+      --bg-card: #0f111a;
+      --bg-card-hover: #151722;
+      --border-color: #1a1c2a;
+      --text-primary: #e4e7eb;
+      --text-secondary: #8a8f9f;
+      --text-tertiary: #5a5f6f;
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --secondary: #8b5cf6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --tag-bg: #1a1c2a;
+    }
+    body {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .vault-sidebar {
+      width: 260px;
+      min-width: 220px;
+      max-width: 260px;
+      border-right: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .vault-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .vault-header h3 {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+    .vault-tree {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    .tree-item {
+      padding: 6px 12px;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+    .tree-item:hover {
+      background: var(--bg-card-hover);
+    }
+    .tree-item.active {
+      background: var(--primary);
+      color: white;
+    }
+    .tree-item.folder::before {
+      content: "📁";
+    }
+    .tree-item.file::before {
+      content: "📄";
+    }
+    .tree-item.folder-open::before {
+      content: "📂";
+    }
+    .tree-indented {
+      padding-left: 24px;
+    }
+    .tree-indented-2 {
+      padding-left: 36px;
+    }
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .note-toolbar {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-secondary);
+    }
+    .note-toolbar .note-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      background: transparent;
+      border: none;
+      outline: none;
+      flex: 1;
+    }
+    .note-toolbar .note-title::placeholder {
+      color: var(--text-tertiary);
+    }
+    .note-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 32px;
+      max-width: 800px;
+      margin: 0 auto;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    .note-content h1 { color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 8px; }
+    .note-content h2 { color: var(--primary); margin-top: 24px; }
+    .note-content h3 { color: var(--secondary); }
+    .note-content pre {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+    }
+    .note-content code {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--secondary);
+    }
+    .note-content p { margin: 8px 0; }
+    .note-content ul { padding-left: 20px; }
+    .note-content li { margin: 4px 0; }
+    .note-content a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .note-content a:hover { text-decoration: underline; }
+    .backlinks-panel {
+      width: 300px;
+      border-left: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      display: flex;
+      flex-direction: column;
+    }
+    .backlinks-header {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+    .backlinks-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    .backlink-item {
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .backlink-item:hover {
+      background: var(--bg-card-hover);
+    }
+    .backlink-item .backlink-title {
+      color: var(--text-primary);
+    }
+    .backlink-item .backlink-excerpt {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      margin-right: 4px;
+      margin-bottom: 4px;
+    }
+    .tag-blue { background: rgba(59,130,246,0.2); color: #3b82f6; }
+    .tag-green { background: rgba(16,185,129,0.2); color: #10b981; }
+    .tag-purple { background: rgba(139,92,246,0.2); color: #8b5cf6; }
+    .tag-orange { background: rgba(245,158,11,0.2); color: #f59e0b; }
+    .graph-container {
+      width: 320px;
+      border-left: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+    }
+    .graph-header {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+    canvas { display: block; width: 100%; height: calc(100vh - 56px); }
+    .toolbar-btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .toolbar-btn:hover {
+      background: var(--primary);
+      color: white;
+    }
+    .search-box {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-primary);
+      font-size: 13px;
+    }
+    .search-box:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+  </style>
+</head>
+<body>
+  <div style="display: flex; height: 100vh;">
+    <!-- Vault Sidebar -->
+    <div class="vault-sidebar">
+      <div class="vault-header">
+        <h3>📚 Vault</h3>
+        <button class="toolbar-btn" onclick="newNote()" style="padding: 4px 8px; font-size: 11px;">+ Nouvelle note</button>
+      </div>
+      <div style="padding: 8px 12px; border-bottom: 1px solid var(--border-color);">
+        <input type="text" class="search-box" placeholder="Rechercher..." oninput="filterTree(this.value)" id="vault-search"/>
+      </div>
+      <div class="vault-tree" id="vault-tree">
+        <!-- Tree populated by JS -->
+      </div>
+      <div class="vault-header" style="border-top: 1px solid var(--border-color);">
+        <input type="text" class="search-box" placeholder="Tags..." style="flex: 1;"/>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <div class="note-toolbar">
+        <input type="text" class="note-title" id="note-title" placeholder="Titre de la note..." />
+        <div style="display: flex; gap: 4px; flex-wrap: wrap; flex: 1;" id="note-tags"></div>
+        <button class="toolbar-btn" onclick="saveNote()">💾 Sauvegarder</button>
+        <button class="toolbar-btn" onclick="exportNote()">📥 Export</button>
+      </div>
+      <div class="note-content" id="note-content" contenteditable="true">
+        <p>Commencez à écrire votre note ici...</p>
+      </div>
+    </div>
+
+    <!-- Backlinks Panel -->
+    <div class="backlinks-panel">
+      <div class="backlinks-header">🔗 Notes liées</div>
+      <div class="backlinks-list" id="backlinks-list">
+        <div style="padding: 12px; color: var(--text-secondary); font-size: 12px;">Aucune note sélectionnée</div>
+      </div>
+      <div class="graph-header">🕸️ Graphique</div>
+      <canvas id="link-graph"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const VAULT_PATH = '/opt/data/agent-studio/vault';
+    const STORAGE_KEY = 'agent_studio_vault';
+
+    // State
+    let vault = null;
+    let currentNote = null;
+    let editorContent = '';
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+      initVault();
+      initGraphCanvas();
+    });
+
+    // Vault initialization
+    function initVault() {
+      // Try loading from server, fallback to localStorage
+      fetch('/api/obsidian/vault')
+        .then(r => r.json())
+        .then(data => {
+          vault = data.vault;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(vault));
+          renderVaultTree();
+        })
+        .catch(() => {
+          // Fallback to localStorage or create default
+          try {
+            vault = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+          } catch(e) { vault = null; }
+          
+          if (!vault) {
+            vault = {
+              name: 'Agent Studio Vault',
+              folders: {
+                '00-Inbox': { type: 'folder', items: ['Bienvenue.md', 'Questions.md'] },
+                '01-Projects': { type: 'folder', items: ['Agent-Studio.md'] },
+                '02-Archive': { type: 'folder', items: [] },
+                'Templates': { type: 'folder', items: ['Agent-Note.md'] }
+              },
+              notes: {
+                'Bienvenue.md': {
+                  path: '00-Inbox/Bienvenue.md',
+                  title: 'Bienvenue',
+                  content: '# Bienvenue dans Agent Studio\n\nCe vault synchronise les connaissances de vos agents IA.\n\n## Démarrer\n- Créez une note\n- Liez vos agents\n- Partagez le contexte\n',
+                  tags: ['#welcome', '#start'],
+                  createdAt: '2026-08-08T00:00:00Z',
+                  updatedAt: '2026-08-08T00:00:00Z',
+                  links: ['Agent-Studio.md']
+                },
+                'Agent-Studio.md': {
+                  path: '01-Projects/Agent-Studio.md',
+                  title: 'Agent Studio',
+                  content: '# Agent Studio\n\nPlateforme d\'orchestration d\'agents IA.\n\n## Fonctionnalités\n- 🎯 Orchestration multi-agent\n- 🧠 Mémoire partagée\n- ⚡ Workflows n8n\n- 🎨 Dashboard 3D\n',
+                  tags: ['#project', '#studio'],
+                  createdAt: '2026-08-07T00:00:00Z',
+                  updatedAt: '2026-08-07T00:00:00Z',
+                  links: ['Bienvenue.md']
+                }
+              },
+              backlinks: {}
+            };
+          }
+          
+          renderVaultTree();
+        });
+    }
+
+    // Render vault tree
+    function renderVaultTree(filter = '') {
+      const tree = document.getElementById('vault-tree');
+      tree.innerHTML = '';
+      const searchBox = document.getElementById('vault-search');
+      
+      if (!vault) return;
+      
+      const fragment = document.createElement('div');
+      
+      // Render folders
+      Object.entries(vault.folders || {}).forEach(([folderName, folderData]) => {
+        if (folderName.toLowerCase().includes(filter.toLowerCase()) || filter === '') {
+          const folderEl = document.createElement('div');
+          folderEl.className = 'tree-item folder';
+          folderEl.innerHTML = `<span>${folderName}</span>`;
+          folderEl.onclick = () => toggleFolder(folderName);
+          fragment.appendChild(folderEl);
+          
+          // Render items in folder
+          const itemsContainer = document.createElement('div');
+          itemsContainer.className = 'folder-contents';
+          itemsContainer.style.display = 'none';
+          
+          (folderData.items || []).forEach(item => {
+            const isFile = item.endsWith('.md');
+            const itemEl = document.createElement('div');
+            itemEl.className = `tree-item file tree-indented`;
+            if (isFile) {
+              itemEl.innerHTML = `<span>${item.replace('.md', '')}</span>`;
+              itemEl.onclick = () => openNote(item.replace('.md', ''), '00-Inbox'); // simplified
+            } else {
+              itemEl.innerHTML = `<span>${item}</span>`;
+            }
+            itemsContainer.appendChild(itemEl);
+          });
+          
+          fragment.appendChild(itemsContainer);
+        }
+      });
+      
+      // Also render notes directly
+      Object.entries(vault.notes || {}).forEach(([noteKey, noteData]) => {
+        const matches = noteKey.toLowerCase().includes(filter.toLowerCase());
+        if (!matches && filter !== '') return;
+        
+        const noteEl = document.createElement('div');
+        noteEl.className = 'tree-item file';
+        noteEl.innerHTML = `<span>${noteData.title || noteKey}</span>`;
+        noteEl.onclick = () => openNote(noteKey, null);
+        fragment.appendChild(noteEl);
+      });
+      
+      tree.innerHTML = '';
+      tree.appendChild(fragment);
+    }
+
+    function toggleFolder(folderName) {
+      const tree = document.getElementById('vault-tree');
+      const folderEl = Array.from(tree.children).find(el => el.textContent === folderName);
+      if (!folderEl) return;
+      
+      const contents = folderEl.nextElementSibling;
+      if (contents && contents.classList.contains('folder-contents')) {
+        const isOpen = contents.style.display !== 'none';
+        contents.style.display = isOpen ? 'none' : 'block';
+        folderEl.classList.toggle('folder-open', !isOpen);
+        folderEl.classList.toggle('folder', isOpen);
+      }
+    }
+
+    function filterTree(query) {
+      renderVaultTree(query);
+    }
+
+    // Note Management
+    function openNote(noteKey, folder) {
+      if (!vault.notes[noteKey]) {
+        // Create note if doesn't exist
+        vault.notes[noteKey] = {
+          path: folder ? `${folder}/${noteKey}.md` : `${noteKey}.md`,
+          title: noteKey,
+          content: `# ${noteKey}\n\n`,
+          tags: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          links: []
+        };
+      }
+      
+      currentNote = vault.notes[noteKey];
+      document.getElementById('note-title').value = currentNote.title;
+      document.getElementById('note-content').innerHTML = formatMarkdown(currentNote.content);
+      renderTags(currentNote.tags || []);
+      renderBacklinks(noteKey);
+      updateGraph(noteKey);
+      saveVault();
+    }
+
+    function newNote() {
+      const title = prompt('Titre de la note :');
+      if (!title) return;
+      openNote(title, '00-Inbox');
+    }
+
+    function saveNote() {
+      if (!currentNote) return;
+      
+      const titleInput = document.getElementById('note-title');
+      const contentEl = document.getElementById('note-content');
+      
+      currentNote.title = titleInput.value;
+      currentNote.content = contentEl.innerText;
+      
+      // Parse tags from content
+      const tagMatches = currentNote.content.matchAll(/#(\w+)/g);
+      currentNote.tags = [...new Set(Array.from(tagMatches).map(m => `#${m[1]}`))];
+      
+      // Update backlinks
+      currentNote.updatedAt = new Date().toISOString();
+      saveVault();
+      
+      renderVaultTree();
+      renderBacklinks(currentNote.title);
+      showStatus('Sauvegardé', 'success');
+    }
+
+    function exportNote() {
+      if (!currentNote) return;
+      
+      const blob = new Blob([currentNote.content], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currentNote.title}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Format markdown to HTML
+    function formatMarkdown(content) {
+      if (typeof marked !== 'undefined') {
+        return marked.parse(content);
+      }
+      // Simple fallback markdown
+      return content
+        .replace(/#{1,6}\s(.*)/g, '<h$1>$2</h$1>') // headings
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // bold
+        .replace(/\*(.*?)\*/g, '<em>$1</em>') // italic
+        .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>') // code blocks
+        .replace(/`([^`]+)`/g, '<code>$1</code>') // inline code
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>') // links
+        .replace(/^\s*[-*]\s(.*)/gm, '<li>$1</li>') // list items
+        .replace(/(?:\r\n|\r|\n){2}/g, '<p>$&\n</p>'); // paragraphs
+    }
+
+    // Tags rendering
+    function renderTags(tags) {
+      const container = document.getElementById('note-tags');
+      container.innerHTML = '';
+      tags.forEach(tag => {
+        const span = document.createElement('span');
+        span.className = 'tag ' + getTagColor(tag);
+        span.textContent = tag;
+        container.appendChild(span);
+      });
+    }
+
+    function getTagColor(tag) {
+      const colors = ['tag-blue', 'tag-green', 'tag-purple', 'tag-orange'];
+      return colors[Math.abs(tag.hashCode ? tag.hashCode() : 0) % colors.length];
+    }
+
+    // Backlinks
+    function renderBacklinks(noteKey) {
+      const list = document.getElementById('backlinks-list');
+      list.innerHTML = '';
+      
+      if (!vault.backlinks) vault.backlinks = {};
+      const links = vault.backlinks[noteKey] || [];
+      
+      if (Object.keys(links).length === 0) {
+        list.innerHTML = '<div style="padding: 12px; color: var(--text-secondary); font-size: 12px;">Aucune note liée</div>';
+        return;
+      }
+      
+      Object.entries(links).forEach(([source, excerpt]) => {
+        const item = document.createElement('div');
+        item.className = 'backlink-item';
+        item.innerHTML = `
+          <div class="backlink-title">${source}</div>
+          <div class="backlink-excerpt">${excerpt}</div>
+        `;
+        item.onclick = () => openNote(source);
+        list.appendChild(item);
+      });
+    }
+
+    // Graph canvas
+    let graphCanvas = null;
+    let graphCtx = null;
+
+    function initGraphCanvas() {
+      graphCanvas = document.getElementById('link-graph');
+      graphCtx = graphCanvas.getContext('2d');
+      graphCanvas.width = 320;
+      graphCanvas.height = window.innerHeight - 56;
+      
+      window.addEventListener('resize', () => {
+        graphCanvas.height = window.innerHeight - 56;
+      });
+    }
+
+    function updateGraph(centerNote) {
+      if (!graphCtx || !vault) return;
+      
+      const notes = Object.keys(vault.notes || {});
+      const centerIdx = notes.indexOf(centerNote);
+      const radius = 100;
+      const centerX = 160;
+      const centerY = graphCanvas.height / 2;
+      
+      graphCtx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
+      
+      // Draw connections
+      if (centerNote && vault.backlinks && vault.backlinks[centerNote]) {
+        graphCtx.strokeStyle = 'var(--border-color)';
+        graphCtx.lineWidth = 1;
+        Object.keys(vault.backlinks[centerNote]).forEach(source => {
+          const sourceIdx = notes.indexOf(source);
+          if (sourceIdx < 0) return;
+          const angle1 = (sourceIdx / notes.length) * 2 * Math.PI;
+          const angle2 = (centerIdx / notes.length) * 2 * Math.PI;
+          const x1 = centerX + Math.cos(angle1) * radius;
+          const y1 = centerY + Math.sin(angle1) * radius;
+          const x2 = centerX + Math.cos(angle2) * radius;
+          const y2 = centerY + Math.sin(angle2) * radius;
+          graphCtx.beginPath();
+          graphCtx.moveTo(x1, y1);
+          graphCtx.lineTo(x2, y2);
+          graphCtx.stroke();
+        });
+      }
+      
+      // Draw nodes
+      notes.forEach((note, i) => {
+        const angle = (i / notes.length) * 2 * Math.PI;
+        const x = centerX + Math.cos(angle) * radius;
+        const y = centerY + Math.sin(angle) * radius;
+        
+        graphCtx.fillStyle = note === centerNote ? '#8b5cf6' : '#6366f1';
+        graphCtx.beginPath();
+        graphCtx.arc(x, y, 6, 0, Math.PI * 2);
+        graphCtx.fill();
+        
+        // Label for center node and nearby
+        if (note === centerNote || (vault.backlinks && vault.backlinks[centerNote] && vault.backlinks[centerNote][note])) {
+          const label = vault.notes[note]?.title || note;
+          graphCtx.font = '10px Inter';
+          graphCtx.fillStyle = 'var(--text-secondary)';
+          graphCtx.textAlign = 'center';
+          graphCtx.fillText(label.substring(0, 12), x, y + 20);
+        }
+      });
+    }
+
+    // Persistence
+    function saveVault() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(vault));
+      // Also try to sync to server
+      fetch('/api/obsidian/vault', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save', vault: vault })
+      }).catch(() => {}); // ignore if server unavailable
+    }
+
+    function showStatus(msg, type = 'success') {
+      const statusEl = document.getElementById('exec-status');
+      if (statusEl) {
+        statusEl.textContent = msg;
+        setTimeout(() => {
+          statusEl.textContent = 'Prêt';
+        }, 2000);
+      }
+    }
+  </script>
+</body>
+</html>

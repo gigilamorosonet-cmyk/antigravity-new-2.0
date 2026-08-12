@@ -3,10 +3,97 @@ const http = require('http');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const WebSocket = require('ws');
 require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
+
+// === WEBSOCKET SERVER (vanilla WS) ===
+const wss = new WebSocket.Server({ server, path: '/ws' });
+
+// Track connected clients + their subscriptions
+const wsClients = new Set();
+const subscriptions = new Map(); // ws -> Set<channel>
+
+// Broadcast a typed event to all clients (or a specific channel subset)
+function broadcast(event, payload = {}) {
+  const message = JSON.stringify({ type: event, ...payload, ts: new Date().toISOString() });
+  for (const ws of wsClients) {
+    if (ws.readyState !== WebSocket.OPEN) continue;
+    const subs = subscriptions.get(ws);
+    // If the client subscribed to relevant channels, or to 'all', send it
+    const channels = payload.channel ? [payload.channel] : null;
+    if (channels === null || (subs && channels.some(c => subs.has(c) || subs.has('all'))) || !subs) {
+      ws.send(message);
+    }
+  }
+}
+
+// Helper: emit agent update
+function emitAgentUpdate(agent, action = 'update') {
+  broadcast('agent:update', { agent, action, channel: 'agents' });
+}
+
+// Helper: emit workflow update
+function emitWorkflowUpdate(workflow, action = 'update') {
+  broadcast('workflow:update', { workflow, action, channel: 'workflows' });
+}
+
+// Helper: emit memory update
+function emitMemoryUpdate(key, value, action = 'update') {
+  broadcast('memory:update', { key, value, action, channel: 'memory' });
+}
+
+// Helper: emit a visual notification flash to all dashboards
+function emitNotification(title, message, type = 'info', priority = 'normal') {
+  broadcast('notification', { title, message, type, priority, channel: 'notifications' });
+}
+
+wss.on('connection', (ws, request) => {
+  wsClients.add(ws);
+  const subs = new Set(['all']); // default: receive all events
+  subscriptions.set(ws, subs);
+  console.log('[WebSocket] Client connected — total:', wsClients.size);
+
+  ws.send(JSON.stringify({ type: 'connected', message: 'WebSocket connected to Agent Studio', ts: new Date().toISOString() }));
+
+  ws.on('message', (raw) => {
+    let data;
+    try { data = JSON.parse(raw.toString()); } catch { return; }
+
+    if (data.type === 'subscribe') {
+      const arr = new Set(data.channels || []);
+      subscriptions.set(ws, arr);
+      console.log('[WebSocket] Subscribed channels:', Array.from(arr).join(', '));
+    } else if (data.type === 'ping') {
+      ws.send(JSON.stringify({ type: 'pong', ts: new Date().toISOString() }));
+    } else if (data.type === 'agent:action') {
+      // A client (e.g. 3D House) reported an agent action — rebroadcast as a flash notification
+      emitNotification(
+        data.title || 'Agent Action',
+        data.message || `Agent ${data.agent || '?'} performed an action.`,
+        data.type || 'info',
+        data.priority || 'normal'
+      );
+      emitAgentUpdate(data.agent ? { name: data.agent, ...data } : null, 'action');
+    } else if (data.type === 'notify') {
+      emitNotification(data.title, data.message, data.type, data.priority);
+    }
+  });
+
+  ws.on('close', () => {
+    wsClients.delete(ws);
+    subscriptions.delete(ws);
+    console.log('[WebSocket] Client disconnected — total:', wsClients.size);
+  });
+
+  ws.on('error', (err) => {
+    console.warn('[WebSocket] Client error:', err.message);
+    wsClients.delete(ws);
+    subscriptions.delete(ws);
+  });
+});
 
 // Middleware
 app.use(cors());
@@ -157,6 +244,9 @@ app.post('/api/agents', async (req, res) => {
   data.agents.push(newAgent);
   writeData(AGENTS_FILE, data);
   
+  emitAgentUpdate(newAgent, 'created');
+  emitNotification('Nouvel Agent', `Agent "${newAgent.name}" créé (${newAgent.type})`, 'success');
+  
   res.status(201).json({ success: true, id: newAgent.id });
 });
 
@@ -189,6 +279,10 @@ app.delete('/api/agents/:id', (req, res) => {
   
   data.agents.splice(agentIndex, 1);
   writeData(AGENTS_FILE, data);
+  
+  emitAgentUpdate({ id: req.params.id, name: agent.name }, 'deleted');
+  emitNotification('Agent Supprimé', `Agent "${agent.name}" a été supprimé`, 'warning');
+  
   res.json({ success: true });
 });
 
@@ -223,6 +317,7 @@ app.post('/api/memory/individual/:agentId/:key', (req, res) => {
   }
   
   writeData(MEMORY_FILE, data);
+  emitMemoryUpdate(req.params.key, value, 'updated');
   res.json({ success: true });
 });
 
@@ -253,6 +348,8 @@ app.post('/api/memory/shared/:key', (req, res) => {
   }
   
   writeData(MEMORY_FILE, data);
+  emitMemoryUpdate(req.params.key, value, 'updated');
+  emitNotification('Mémoire Partagée', `Clé "${req.params.key}" mise à jour`, 'info');
   res.json({ success: true });
 });
 
@@ -318,6 +415,9 @@ app.post('/api/workflows/n8n', async (req, res) => {
   data.n8n.push(newWorkflow);
   writeData(MEMORY_FILE, data);
   
+  emitWorkflowUpdate(newWorkflow, 'created');
+  emitNotification('Workflow Créé', `Workflow "${newWorkflow.name}" créé`, 'success');
+  
   res.status(201).json({ success: true, id: newWorkflow.id });
 });
 
@@ -334,28 +434,108 @@ app.post('/api/workflows/n8n/:id/execute', async (req, res) => {
     workflow.status = 'active';
     workflow.last_run = new Date().toISOString();
     writeData(MEMORY_FILE, data);
+    
+    emitWorkflowUpdate(workflow, 'executed');
+    emitNotification('Workflow Exécuté', `Workflow "${workflow.name}" est en cours d'exécution`, 'success');
   }
   res.json({ success: true, message: 'Workflow exécuté' });
+});
+
+// === ROUTES TELEGRAM PUSH ===
+app.post('/api/telegram/push', async (req, res) => {
+  try {
+    const { message, telegram_id } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: 'Message requis' });
+    }
+
+    const chatId = telegram_id || process.env.TELEGRAM_CHAT_ID || '8644215373';
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+
+    if (!botToken) {
+      // Fallback: log to server console (dev mode without bot token)
+      console.log(`[Telegram Push] (dev fallback) chat_id=${chatId}: ${message}`);
+      emitNotification('Notification Telegram (dev)', message, 'info');
+      return res.json({
+        success: true,
+        dev: true,
+        chat_id: chatId,
+        message: message,
+        note: 'Bot token not configured — message logged to server console only'
+      });
+    }
+
+    const payload = {
+      chat_id: chatId,
+      text: message,
+      parse_mode: 'Markdown'
+    };
+
+    const telegramRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await telegramRes.json();
+
+    if (!telegramRes.ok) {
+      throw new Error(result.description || 'Telegram API error');
+    }
+
+    res.json({ success: true, telegram: result });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // HEALTH CHECK
 app.get('/health', (req, res) => {
   res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(), 
-    services: ['memory', 'agents', 'workflows', 'model-routing', 'webhooks', 'auth']
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    services: ['memory', 'agents', 'workflows', 'model-routing', 'webhooks', 'auth'],
+    websocket: {
+      status: wsClients.size > 0 ? 'connected' : 'available',
+      clients: wsClients.size,
+      endpoint: 'wss://' + (req.headers.host || 'localhost:' + PORT) + '/ws'
+    }
   });
 });
 
 // SERVIR LE FRONTEND
 app.use(express.static(path.join(__dirname, '../client')));
 
+// SERVIR LES DASHBOARDS
+app.use('/dashboards', express.static(path.join(__dirname, '../dashboards')));
+
+// === ROUTES OBSIDIAN VAULT ===
+app.get('/api/obsidian/vault', (req, res) => {
+  const vaultPath = path.join(__dirname, '../dashboards/obsidian/vault.json');
+  if (fs.existsSync(vaultPath)) {
+    const vault = JSON.parse(fs.readFileSync(vaultPath, 'utf8'));
+    res.json({ vault });
+  } else {
+    res.json({ vault: null });
+  }
+});
+
+app.post('/api/obsidian/vault', (req, res) => {
+  const { action, vault } = req.body;
+  if (action === 'save' && vault) {
+    const vaultPath = path.join(__dirname, '../dashboards/obsidian/vault.json');
+    fs.writeFileSync(vaultPath, JSON.stringify(vault, null, 2));
+    res.json({ success: true });
+  } else {
+    res.status(400).json({ error: 'Invalid action' });
+  }
+});
+
 // SPA fallback
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/index.html'));
 });
-
-// DÉMARRER LE SERVEUR
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`
@@ -378,6 +558,7 @@ server.listen(PORT, () => {
 ║  ✓ Workflows n8n                                               ║
 ║  ✓ Model Router (auto-switch)                                  ║
 ║  ✓ Webhooks                                                    ║
+║  ✓ WebSocket (/ws) — sync en temps réel                      ║
 ╚════════════════════════════════════════════════════════════════╝
   `);
 });
